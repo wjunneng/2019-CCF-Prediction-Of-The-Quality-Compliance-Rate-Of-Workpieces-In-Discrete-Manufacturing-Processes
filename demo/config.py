@@ -23,8 +23,12 @@ class DefaultConfig(object):
     # submit_example
     submit_example_path = project_path + '/data/original/submit_example.csv'
 
+    # 处理异常类别变量
+    outlier_columns = ['Parameter1', 'Parameter10', 'Parameter2', 'Parameter3', 'Parameter4']
+
     # no_replace
     no_replace = False
 
     # select_model
     select_model = 'lgb'
+

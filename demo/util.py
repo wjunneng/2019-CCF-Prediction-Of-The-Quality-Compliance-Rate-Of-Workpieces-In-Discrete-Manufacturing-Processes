@@ -45,12 +45,67 @@ def max_min_scalar(df, **params):
     return pd.DataFrame(data=df, columns=columns)
 
 
+def deal_outlier(df, **params):
+    """
+    处理异常值
+    :param df:
+    :param params:
+    :return:
+    """
+    Q1 = df.describe().ix['25%', :].sort_index()
+    Q3 = df.describe().ix['75%', :].sort_index()
+
+    Q1_dict = Q1.to_dict()
+    Q3_dict = Q3.to_dict()
+
+    min = (Q3 - 3 * (Q3 - Q1)).to_dict()
+    max = (Q3 + 3 * (Q3 - Q1)).to_dict()
+
+    for column in DefaultConfig.outlier_columns:
+        df[column] = df[column].apply(lambda x: Q1_dict[column] if x <= min[column] else x)
+        df[column] = df[column].apply(lambda x: Q3_dict[column] if x >= max[column] else x)
+
+    return df
+
+
+def smote(X_train, y_train, **params):
+    """
+    过采样+欠采样
+    :param X_train:
+    :param y_train:
+    :param params:
+    :return:
+    """
+    import pandas as pd
+    from collections import Counter
+
+    # # 过采样+欠采样
+    # from imblearn.combine import SMOTETomek
+    # smote_tomek = SMOTETomek(ratio={0: 3000, 1: 3000, 2: 3000, 3: 3000}, random_state=0, n_jobs=10)
+    # train_X, train_y = smote_tomek.fit_sample(X_train, y_train)
+
+    # Fail:3   Pass:2   Good:1   Excellent:0
+    # Pass 2417 \ Good 1584 \ Excellent 1107 \ Fail 892
+    # 过采样+欠采样
+    from imblearn.combine import SMOTEENN
+    smote_enn = SMOTEENN(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, random_state=42, n_jobs=10)
+    train_X, train_y = smote_enn.fit_sample(X_train, y_train)
+    print('Resampled dataset shape %s' % Counter(train_y))
+
+    # X_train
+    X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
+
+    return X_train, pd.Series(train_y)
+
+
 def preprocessing(**params):
     """
     数据预处理
     :param params:
     :return:
     """
+    import pandas as pd
+
     # testing data
     first_round_testing_data = get_first_round_tesing_data()
     # training data
@@ -85,7 +140,16 @@ def preprocessing(**params):
     # X_test = max_min_scalar(X_test)
     # X_train = max_min_scalar(X_train)
 
-    return X_train, y_train, X_test, testing_group
+    # 处理异常值
+    result = deal_outlier(pd.concat([X_train, X_test], axis=0, ignore_index=True))
+    # 去除index
+    result.reset_index(inplace=True, drop=True)
+
+    # 过采样+欠采样
+    X_train, y_train = smote(X_train=X_train, y_train=y_train)
+
+    return result[:X_train.shape[0]], y_train, result[
+                                               X_train.shape[0]:X_train.shape[0] + y_train.shape[0]], testing_group
 
 
 def svm_model(X_train, y_train, X_test, testing_group, **params):
@@ -205,7 +269,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     sub = sub.drop_duplicates()
 
     sub.to_csv(path_or_buf=DefaultConfig.project_path + '/data/submit/' + DefaultConfig.select_model + '_submit.csv',
-                  index=False, encoding='utf-8')
+               index=False, encoding='utf-8')
     return sub
 
 
