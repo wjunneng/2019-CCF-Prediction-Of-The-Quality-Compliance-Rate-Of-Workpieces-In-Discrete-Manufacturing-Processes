@@ -12,8 +12,7 @@ def main():
 
     # svm_model(X_train, y_train, X_test, testing_group)
     lgb_model(X_train, y_train, X_test, testing_group)
-
-    print(time.clock() - start)
+    print('\n模型构建 耗时： %s \n' % str(time.clock() - start))
 
 
 if __name__ == '__main__':

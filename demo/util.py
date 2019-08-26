@@ -81,21 +81,44 @@ def smote(X_train, y_train, **params):
 
     # # 过采样+欠采样
     # from imblearn.combine import SMOTETomek
-    # smote_tomek = SMOTETomek(ratio={0: 3000, 1: 3000, 2: 3000, 3: 3000}, random_state=0, n_jobs=10)
+    # smote_tomek = SMOTETomek(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, random_state=0, n_jobs=10)
     # train_X, train_y = smote_tomek.fit_sample(X_train, y_train)
 
-    # Fail:3   Pass:2   Good:1   Excellent:0
-    # Pass 2417 \ Good 1584 \ Excellent 1107 \ Fail 892
-    # 过采样+欠采样
-    from imblearn.combine import SMOTEENN
-    smote_enn = SMOTEENN(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, random_state=42, n_jobs=10)
-    train_X, train_y = smote_enn.fit_sample(X_train, y_train)
+    from imblearn.over_sampling import SMOTE
+    smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
+    train_X, train_y = smote.fit_sample(X_train, y_train)
     print('Resampled dataset shape %s' % Counter(train_y))
 
     # X_train
     X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
 
     return X_train, pd.Series(train_y)
+
+
+def add_feature(df, **params):
+    """
+    添加新的类别特征
+    :param df:
+    :param params:
+    :return:
+    """
+    import numpy as np
+    from sklearn import preprocessing
+
+    # 添加新的类别列
+    for column in DefaultConfig.encoder_columns:
+        df[column + '_label'] = df[column].apply(lambda x: str(round(x)))
+
+    # 获取要进行label_encoder的特征列
+    object_cols = list(df.dtypes[df.dtypes == np.object].index)
+
+    # 进行label_encoder
+    print('one_hot 处理的特征列： %s' % ' '.join(object_cols))
+    lbl = preprocessing.LabelEncoder()
+    for col in object_cols:
+        df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
+
+    return df
 
 
 def preprocessing(**params):
@@ -136,20 +159,38 @@ def preprocessing(**params):
     # 标签列
     y_train = first_round_training_data['Quality_label']
 
+    # 待优化，效果很不好
     # 归一化
     # X_test = max_min_scalar(X_test)
     # X_train = max_min_scalar(X_train)
 
-    # 处理异常值
-    result = deal_outlier(pd.concat([X_train, X_test], axis=0, ignore_index=True))
+    # 待优化，效果很不好
+    # # 处理异常值
+    # result = deal_outlier(pd.concat([X_train, X_test], axis=0, ignore_index=True))
+    # # 去除index
+    # result.reset_index(inplace=True, drop=True)
+    # # 重新获取X_train
+    # X_train = result[:X_train.shape[0]]
+    # print('X_train.shape: ', X_train.shape)
+    # # 重新获取X_test
+    # X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
+    # print('X_test.shape: ', X_test.shape)
+
+    # 处理类别变量
+    result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True))
     # 去除index
     result.reset_index(inplace=True, drop=True)
+    # 重新获取X_train
+    X_train = result[:X_train.shape[0]]
+    print('X_train.shape: ', X_train.shape)
+    # 重新获取X_test
+    X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
+    print('X_test.shape: ', X_test.shape)
 
     # 过采样+欠采样
     X_train, y_train = smote(X_train=X_train, y_train=y_train)
 
-    return result[:X_train.shape[0]], y_train, result[
-                                               X_train.shape[0]:X_train.shape[0] + y_train.shape[0]], testing_group
+    return X_train, y_train, X_test, testing_group
 
 
 def svm_model(X_train, y_train, X_test, testing_group, **params):
@@ -161,8 +202,8 @@ def svm_model(X_train, y_train, X_test, testing_group, **params):
     :param params:
     :return:
     """
-    from sklearn.model_selection import GridSearchCV
     from sklearn.svm import SVC
+    from sklearn.model_selection import GridSearchCV
 
     # model = SVC(C=5, probability=True)
     # param_grid = {
