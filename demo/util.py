@@ -34,15 +34,19 @@ def max_min_scalar(df, **params):
     :param params:
     :return:
     """
+    import numpy as np
     import pandas as pd
     from sklearn.preprocessing import MaxAbsScaler
 
-    # 保存columns
-    columns = df.columns
+    # 归一化 保存columns
+    # columns = df.columns
+    # df = MaxAbsScaler().fit_transform(df)
+    # df = pd.DataFrame(data=df, columns=columns)
 
-    df = MaxAbsScaler().fit_transform(df)
+    for column in DefaultConfig.outlier_columns:
+        df[column] = df[column].apply(lambda x: np.log(x+1))
 
-    return pd.DataFrame(data=df, columns=columns)
+    return df
 
 
 def deal_outlier(df, **params):
@@ -79,14 +83,14 @@ def smote(X_train, y_train, **params):
     import pandas as pd
     from collections import Counter
 
-    # # 过采样+欠采样
-    # from imblearn.combine import SMOTETomek
-    # smote_tomek = SMOTETomek(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, random_state=0, n_jobs=10)
-    # train_X, train_y = smote_tomek.fit_sample(X_train, y_train)
+    # 过采样+欠采样
+    from imblearn.combine import SMOTETomek
+    smote_tomek = SMOTETomek(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, random_state=0, n_jobs=10)
+    train_X, train_y = smote_tomek.fit_sample(X_train, y_train)
 
-    from imblearn.over_sampling import SMOTE
-    smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
-    train_X, train_y = smote.fit_sample(X_train, y_train)
+    # from imblearn.over_sampling import SMOTE
+    # smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
+    # train_X, train_y = smote.fit_sample(X_train, y_train)
     print('Resampled dataset shape %s' % Counter(train_y))
 
     # X_train
@@ -161,8 +165,8 @@ def preprocessing(**params):
 
     # 待优化，效果很不好
     # 归一化
-    # X_test = max_min_scalar(X_test)
-    # X_train = max_min_scalar(X_train)
+    X_test = max_min_scalar(X_test)
+    X_train = max_min_scalar(X_train)
 
     # 待优化，效果很不好
     # # 处理异常值

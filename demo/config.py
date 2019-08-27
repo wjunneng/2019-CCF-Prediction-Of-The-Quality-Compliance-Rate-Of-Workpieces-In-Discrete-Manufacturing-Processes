@@ -24,9 +24,9 @@ class DefaultConfig(object):
     submit_example_path = project_path + '/data/original/submit_example.csv'
 
     # 处理异常类别变量
-    outlier_columns = ['Parameter1', 'Parameter10', 'Parameter2', 'Parameter3', 'Parameter4']
+    outlier_columns = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4']
     # label_encoder类别变量
-    encoder_columns = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']
+    encoder_columns = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
 
     # no_replace
     no_replace = False
