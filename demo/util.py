@@ -191,7 +191,7 @@ def preprocessing(**params):
     # X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
     # print('X_test.shape: ', X_test.shape)
 
-    # 处理类别变量
+    # 处理类别变量 提升幅度在0.03左右
     result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True))
     # 去除index
     result.reset_index(inplace=True, drop=True)
