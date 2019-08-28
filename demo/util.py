@@ -34,11 +34,22 @@ def max_min_scalar(df, **params):
     :param params:
     :return:
     """
-    import numpy as np
-    import pandas as pd
-    from sklearn.preprocessing import MaxAbsScaler
+    max_limit = [3.9e+09, 1.4e+09, 2.9e+09, 3.7e+08, 70, 43, 2.4e+04, 7.6e+04, 6.1e+08, 1.5e+04]
+    params = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6', 'Parameter7',
+              'Parameter8', 'Parameter9', 'Parameter10']
 
-    # 归一化 保存columns
+    max_limit_params = dict(zip(params, max_limit))
+
+    for column in df.columns:
+        tmp = max_limit_params[column]
+        df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
+
+    return df
+
+    ################################################### 归一化 ##########################################################
+    # import pandas as pd
+    # from sklearn.preprocessing import MaxAbsScaler
+    # # 保存columns
     # columns = df.columns
     # df = MaxAbsScaler().fit_transform(df)
     # df = pd.DataFrame(data=df, columns=columns)
@@ -139,7 +150,7 @@ def preprocessing(**params):
     first_round_training_data = get_first_round_training_data()
 
     # 选中的特征列
-    select_columns = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6', 'Parameter7',
+    select_columns = ['Parameter1', 'Parameter4', 'Parameter2', 'Parameter3', 'Parameter5', 'Parameter6', 'Parameter7',
                       'Parameter8', 'Parameter9', 'Parameter10']
 
     # Quality_label
@@ -259,9 +270,8 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     oof = np.zeros((X_train.shape[0], 4))
     # 线上结论
     prediction = np.zeros((X_test.shape[0], 4))
-    seeds = [2255, 2266, 223344, 2019 * 2 + 1024, 332232111, 40, 96, 20, 48, 1, 80247, 8, 5, 3, 254, 54, 3434, 2424, 23,
-             222, 22222, 222223332, 222, 222, 2, 4, 32322777, 8888]
-    num_model_seed = 15
+    seeds = [2255, 2266, 223344, 2019 * 2 + 1024, 332232111, 40]
+    num_model_seed = 5
     print('training')
     for model_seed in range(num_model_seed):
         print('模型', model_seed + 1, '开始训练')
