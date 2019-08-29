@@ -44,8 +44,6 @@ def max_min_scalar(df, **params):
         tmp = max_limit_params[column]
         df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
 
-    return df
-
     ################################################### 归一化 ##########################################################
     # import pandas as pd
     # from sklearn.preprocessing import MaxAbsScaler
@@ -58,6 +56,7 @@ def max_min_scalar(df, **params):
         df[column] = df[column].apply(lambda x: np.log(x+1))
 
     return df
+
 
 
 def deal_outlier(df, **params):
@@ -270,7 +269,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     oof = np.zeros((X_train.shape[0], 4))
     # 线上结论
     prediction = np.zeros((X_test.shape[0], 4))
-    seeds = [2255, 2266, 223344, 2019 * 2 + 1024, 332232111, 40]
+    seeds = [2255, 80, 223344, 2019 * 2 + 1024, 332232111]
     num_model_seed = 5
     print('training')
     for model_seed in range(num_model_seed):
@@ -291,18 +290,16 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 'boosting_type': 'gbdt',
                 'objective': 'multiclass',
                 'num_class': 4,
-                'metrix': 'multi_logloss',
                 'feature_fraction': 0.8,
                 'bagging_fraction': 0.8,
                 'bagging_freq': 5,
                 'num_leaves': 100,
                 'verbose': -1,
                 'max_depth': 7,
-                'seed': 42,
+                'seed': 42
             }
             bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
-                            verbose_eval=1000,
-                            early_stopping_rounds=1000)
+                            verbose_eval=1000, early_stopping_rounds=1000)
             oof_lgb[test_index] += bst.predict(test_x)
             prediction_lgb += bst.predict(X_test) / 5
             gc.collect()
