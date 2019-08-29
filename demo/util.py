@@ -173,8 +173,7 @@ def preprocessing(**params):
     # 标签列
     y_train = first_round_training_data['Quality_label']
 
-    # 待优化，效果很不好
-    # 归一化
+    # 分布变换
     X_test = max_min_scalar(X_test)
     X_train = max_min_scalar(X_train)
 
@@ -308,6 +307,79 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         prediction += prediction_lgb / num_model_seed
         print('logloss', log_loss(pd.get_dummies(y_train).values, oof_lgb))
         print('ac', accuracy_score(y_train, np.argmax(oof_lgb, axis=1)))
+
+    print('logloss', log_loss(pd.get_dummies(y_train).values, oof))
+    print('ac', accuracy_score(y_train, np.argmax(oof, axis=1)))
+
+    sub = pd.DataFrame(data=testing_group.astype(int), columns=['Group'])
+    prob_cols = ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']
+    for i, f in enumerate(prob_cols):
+        sub[f] = prediction[:, i]
+    for i in prob_cols:
+        sub[i] = sub.groupby('Group')[i].transform('mean')
+    sub = sub.drop_duplicates()
+
+    sub.to_csv(path_or_buf=DefaultConfig.project_path + '/data/submit/' + DefaultConfig.select_model + '_submit.csv',
+               index=False, encoding='utf-8')
+    return sub
+
+
+def ctb_model(X_train, y_train, X_test, testing_group, **params):
+    """
+    ctb 模型
+    :param new_train:
+    :param y:
+    :param new_test:
+    :param columns:
+    :param params:
+    :return:
+    """
+    import gc
+    import numpy as np
+    from sklearn.model_selection import StratifiedKFold
+    import pandas as pd
+    from catboost import CatBoostClassifier
+    from sklearn.metrics import log_loss, accuracy_score
+
+    # 线下验证
+    oof = np.zeros((X_train.shape[0], 4))
+    # 线上结论
+    prediction = np.zeros((X_test.shape[0], 4))
+    seeds = [2255, 80, 223344, 2019 * 2 + 1024, 332232111]
+    num_model_seed = 5
+    print('training')
+    for model_seed in range(num_model_seed):
+        print('模型', model_seed + 1, '开始训练')
+        oof_ctb = np.zeros((X_train.shape[0], 4))
+        prediction_ctb = np.zeros((X_test.shape[0], 4))
+        skf = StratifiedKFold(n_splits=5, random_state=seeds[model_seed], shuffle=True)
+
+        for index, (train_index, test_index) in enumerate(skf.split(X_train, y_train)):
+            train_x, test_x, train_y, test_y = X_train.iloc[train_index, :], X_train.iloc[test_index, :], y_train.iloc[
+                train_index], y_train.iloc[test_index]
+
+            gc.collect()
+            cbt_params = {
+                'random_seed': 2019,
+                'iterations': 2019,
+                'learning_rate': 0.01,
+                'objective': 'MultiClass',
+                'classes_count': 4,
+                'max_depth': 7,
+                'loss_function': 'MultiClass',
+                'task_type': 'GPU',
+                'leaf_estimation_method': 'Newton'
+            }
+
+            bst = CatBoostClassifier(**cbt_params).fit(X=train_x, y=train_y, eval_set=(test_x, test_y), silent=True)
+            oof_ctb[test_index] += bst.predict_proba(test_x)
+            prediction_ctb += bst.predict_proba(X_test) / 5
+            gc.collect()
+
+        oof += oof_ctb / num_model_seed
+        prediction += prediction_ctb / num_model_seed
+        print('logloss', log_loss(pd.get_dummies(y_train).values, oof_ctb))
+        print('ac', accuracy_score(y_train, np.argmax(oof_ctb, axis=1)))
 
     print('logloss', log_loss(pd.get_dummies(y_train).values, oof))
     print('ac', accuracy_score(y_train, np.argmax(oof, axis=1)))
