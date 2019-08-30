@@ -1,5 +1,5 @@
 from util import *
-
+from config import *
 
 def main():
     import time

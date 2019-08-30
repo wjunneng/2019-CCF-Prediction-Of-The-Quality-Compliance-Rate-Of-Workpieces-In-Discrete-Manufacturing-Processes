@@ -117,6 +117,7 @@ def add_feature(df, **params):
     :return:
     """
     import numpy as np
+    import pandas as pd
     from sklearn import preprocessing
 
     # 添加新的类别列
@@ -131,6 +132,13 @@ def add_feature(df, **params):
     lbl = preprocessing.LabelEncoder()
     for col in object_cols:
         df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
+
+    # 类别变量的nunique特征
+    for fea in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']:
+        gp1 = df.groupby('Parameter10')[fea].nunique().reset_index().rename(columns={fea: "Parameter10_%s_nuq_num" % fea})
+        gp2 = df.groupby(fea)['Parameter10'].nunique().reset_index().rename(columns={'Parameter10': "%s_Parameter10_nuq_num" % fea})
+        df = pd.merge(df, gp1, how='left', on=['Parameter10'])
+        df = pd.merge(df, gp2, how='left', on=[fea])
 
     return df
 
@@ -298,7 +306,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 'seed': 42
             }
             bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
-                            verbose_eval=1000, early_stopping_rounds=1000)
+                            verbose_eval=1000, early_stopping_rounds=2019)
             oof_lgb[test_index] += bst.predict(test_x)
             prediction_lgb += bst.predict(X_test) / 5
             gc.collect()
