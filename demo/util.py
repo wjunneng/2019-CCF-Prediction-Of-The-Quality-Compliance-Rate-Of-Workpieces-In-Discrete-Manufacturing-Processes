@@ -133,12 +133,12 @@ def add_feature(df, **params):
     for col in object_cols:
         df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
 
-    # 类别变量的nunique特征
-    for fea in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']:
-        gp1 = df.groupby('Parameter10')[fea].nunique().reset_index().rename(columns={fea: "Parameter10_%s_nuq_num" % fea})
-        gp2 = df.groupby(fea)['Parameter10'].nunique().reset_index().rename(columns={'Parameter10': "%s_Parameter10_nuq_num" % fea})
-        df = pd.merge(df, gp1, how='left', on=['Parameter10'])
-        df = pd.merge(df, gp2, how='left', on=[fea])
+    # 类别变量的nunique特征 对cbt有用
+    # for fea in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']:
+    #     gp1 = df.groupby('Parameter10')[fea].nunique().reset_index().rename(columns={fea: "Parameter10_%s_nuq_num" % fea})
+    #     gp2 = df.groupby(fea)['Parameter10'].nunique().reset_index().rename(columns={'Parameter10': "%s_Parameter10_nuq_num" % fea})
+    #     df = pd.merge(df, gp1, how='left', on=['Parameter10'])
+    #     df = pd.merge(df, gp2, how='left', on=[fea])
 
     return df
 
