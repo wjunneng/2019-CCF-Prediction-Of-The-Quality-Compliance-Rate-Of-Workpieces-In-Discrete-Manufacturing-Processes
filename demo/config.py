@@ -27,6 +27,8 @@ class DefaultConfig(object):
     outlier_columns = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4']
     # label_encoder类别变量
     encoder_columns = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
+    # label_columns
+    label_columns = ['Parameter5_label', 'Parameter6_label', 'Parameter7_label', 'Parameter8_label', 'Parameter9_label']
 
     # no_replace
     no_replace = False

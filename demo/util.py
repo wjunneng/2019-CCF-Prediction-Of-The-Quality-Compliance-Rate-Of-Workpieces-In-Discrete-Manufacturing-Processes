@@ -133,7 +133,7 @@ def add_feature(df, **params):
     for col in object_cols:
         df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
 
-    # 类别变量的nunique特征 对cbt有用
+    # 类别变量的nunique特征 对cbt有用 提升在0.01左右
     # for fea in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']:
     #     gp1 = df.groupby('Parameter10')[fea].nunique().reset_index().rename(columns={fea: "Parameter10_%s_nuq_num" % fea})
     #     gp2 = df.groupby(fea)['Parameter10'].nunique().reset_index().rename(columns={'Parameter10': "%s_Parameter10_nuq_num" % fea})
@@ -208,8 +208,11 @@ def preprocessing(**params):
     X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
     print('X_test.shape: ', X_test.shape)
 
-    # 过采样+欠采样
+    # 过采样+欠采样 0.01的提升
     X_train, y_train = smote(X_train=X_train, y_train=y_train)
+    # 注意：采样生成的是浮点型数据，记得转成整型
+    for column in DefaultConfig.label_columns:
+        X_train[column] = X_train[column].astype(int)
 
     return X_train, y_train, X_test, testing_group
 
@@ -276,7 +279,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     oof = np.zeros((X_train.shape[0], 4))
     # 线上结论
     prediction = np.zeros((X_test.shape[0], 4))
-    seeds = [2255, 80, 223344, 2019 * 2 + 1024, 332232111]
+    seeds = [2255, 2266, 223344, 2019 * 2 + 1024, 332232111]
     num_model_seed = 5
     print('training')
     for model_seed in range(num_model_seed):
@@ -296,6 +299,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 'learning_rate': 0.01,
                 'boosting_type': 'gbdt',
                 'objective': 'multiclass',
+                'metrix': 'multi_logloss',
                 'num_class': 4,
                 'feature_fraction': 0.8,
                 'bagging_fraction': 0.8,
@@ -306,7 +310,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 'seed': 42
             }
             bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
-                            verbose_eval=1000, early_stopping_rounds=2019)
+                            verbose_eval=1000, early_stopping_rounds=1000)
             oof_lgb[test_index] += bst.predict(test_x)
             prediction_lgb += bst.predict(X_test) / 5
             gc.collect()
