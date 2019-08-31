@@ -1,4 +1,5 @@
 from config import DefaultConfig
+from mean_encoder import MeanEncoder
 
 
 def get_first_round_tesing_data(**params):
@@ -27,6 +28,24 @@ def get_first_round_training_data(**params):
     return first_round_training_data
 
 
+def cluster_plot(data, d, k):
+    """
+    自定义作图函数来显示聚类结果
+    :param data:
+    :param d:
+    :param k:
+    :return:
+    """
+    import matplotlib.pyplot as plt
+    plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+    plt.figure(figsize=(8, 3))
+    for j in range(0, k):
+        plt.plot(data[d == j], [j for i in d[d == j]], 'o')
+
+        plt.ylim(-0.5, k - 0.5)
+    return plt
+
+
 def max_min_scalar(df, **params):
     """
     归一化
@@ -40,7 +59,7 @@ def max_min_scalar(df, **params):
 
     max_limit_params = dict(zip(params, max_limit))
 
-    for column in df.columns:
+    for column in params:
         tmp = max_limit_params[column]
         df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
 
@@ -133,6 +152,10 @@ def add_feature(df, **params):
     for col in object_cols:
         df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
 
+    # 进行mean_encoder
+    # print('mean_encoder 处理的特征列： %s' % ' '.join(object_cols))
+    # df[object_cols] = MeanEncoder(object_cols).fit_transform(df[object_cols].astype('str'))
+
     # 类别变量的nunique特征 对cbt有用 提升在0.01左右
     # for fea in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']:
     #     gp1 = df.groupby('Parameter10')[fea].nunique().reset_index().rename(columns={fea: "Parameter10_%s_nuq_num" % fea})
@@ -182,8 +205,8 @@ def preprocessing(**params):
     y_train = first_round_training_data['Quality_label']
 
     # 分布变换
-    X_test = max_min_scalar(X_test)
-    X_train = max_min_scalar(X_train)
+    # X_test = max_min_scalar(X_test)
+    # X_train = max_min_scalar(X_train)
 
     # 待优化，效果很不好
     # # 处理异常值
@@ -201,18 +224,29 @@ def preprocessing(**params):
     result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True))
     # 去除index
     result.reset_index(inplace=True, drop=True)
+
+    # 分布变换
+    result = max_min_scalar(result)
+    # 去除index
+    result.reset_index(inplace=True, drop=True)
+
     # 重新获取X_train
-    X_train = result[:X_train.shape[0]]
+    X_train = result[:X_train.shape[0]].reset_index(drop=True)
     print('X_train.shape: ', X_train.shape)
     # 重新获取X_test
-    X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
+    X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]].reset_index(drop=True)
     print('X_test.shape: ', X_test.shape)
 
     # 过采样+欠采样 0.01的提升
     X_train, y_train = smote(X_train=X_train, y_train=y_train)
     # 注意：采样生成的是浮点型数据，记得转成整型
-    for column in DefaultConfig.label_columns:
-        X_train[column] = X_train[column].astype(int)
+    for column in DefaultConfig.encoder_columns:
+        if column + '_label' in list(X_train.columns):
+            X_train[column + '_label'] = X_train[column + '_label'].astype(int)
+            X_test[column + '_label'] = X_test[column + '_label'].astype(int).astype(float)
+        if column + '_bin' in list(X_train.columns):
+            X_train[column + '_bin'] = X_train[column + '_bin'].astype(int)
+            X_test[column + '_label'] = X_test[column + '_label'].astype(int).astype(float)
 
     return X_train, y_train, X_test, testing_group
 
@@ -279,7 +313,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     oof = np.zeros((X_train.shape[0], 4))
     # 线上结论
     prediction = np.zeros((X_test.shape[0], 4))
-    seeds = [2255, 2266, 223344, 2019 * 2 + 1024, 332232111]
+    seeds = [2255, 80, 223344, 2019 * 2 + 1024, 332232111]
     num_model_seed = 5
     print('training')
     for model_seed in range(num_model_seed):
@@ -289,7 +323,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         skf = StratifiedKFold(n_splits=5, random_state=seeds[model_seed], shuffle=True)
 
         for index, (train_index, test_index) in enumerate(skf.split(X_train, y_train)):
-            print(index)
+            print('%d 折' % index)
             train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
                 train_index], y_train.iloc[test_index]
             train_data = lgb.Dataset(train_x, label=train_y)
@@ -299,7 +333,6 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 'learning_rate': 0.01,
                 'boosting_type': 'gbdt',
                 'objective': 'multiclass',
-                'metrix': 'multi_logloss',
                 'num_class': 4,
                 'feature_fraction': 0.8,
                 'bagging_fraction': 0.8,
