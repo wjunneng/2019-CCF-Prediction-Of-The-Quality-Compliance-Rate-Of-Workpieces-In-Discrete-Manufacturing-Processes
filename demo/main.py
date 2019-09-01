@@ -11,10 +11,6 @@ def main():
     X_train, y_train, X_test, testing_group = preprocessing()
     print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
 
-    for column in DefaultConfig.encoder_columns:
-        print(X_test[column + '_bin'].value_counts())
-        print(X_train[column + '_bin'].value_counts())
-
     if DefaultConfig.select_model is 'lgb':
         lgb_model(X_train, y_train, X_test, testing_group)
     elif DefaultConfig.select_model is 'ctb':

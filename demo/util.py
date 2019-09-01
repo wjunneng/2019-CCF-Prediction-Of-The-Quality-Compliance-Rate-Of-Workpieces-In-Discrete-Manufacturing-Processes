@@ -1,5 +1,4 @@
 from config import DefaultConfig
-from mean_encoder import MeanEncoder
 
 
 def get_first_round_tesing_data(**params):
@@ -28,24 +27,6 @@ def get_first_round_training_data(**params):
     return first_round_training_data
 
 
-def cluster_plot(data, d, k):
-    """
-    自定义作图函数来显示聚类结果
-    :param data:
-    :param d:
-    :param k:
-    :return:
-    """
-    import matplotlib.pyplot as plt
-    plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
-    plt.figure(figsize=(8, 3))
-    for j in range(0, k):
-        plt.plot(data[d == j], [j for i in d[d == j]], 'o')
-
-        plt.ylim(-0.5, k - 0.5)
-    return plt
-
-
 def max_min_scalar(df, **params):
     """
     归一化
@@ -53,29 +34,33 @@ def max_min_scalar(df, **params):
     :param params:
     :return:
     """
+    import numpy as np
+
     max_limit = [3.9e+09, 1.4e+09, 2.9e+09, 3.7e+08, 70, 43, 2.4e+04, 7.6e+04, 6.1e+08, 1.5e+04]
     params = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6', 'Parameter7',
               'Parameter8', 'Parameter9', 'Parameter10']
 
     max_limit_params = dict(zip(params, max_limit))
 
-    for column in params:
+    # 处理异常值
+    for column in DefaultConfig.outlier_columns:
         tmp = max_limit_params[column]
         df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
 
-    ################################################### 归一化 ##########################################################
-    # import pandas as pd
-    # from sklearn.preprocessing import MaxAbsScaler
-    # # 保存columns
-    # columns = df.columns
-    # df = MaxAbsScaler().fit_transform(df)
-    # df = pd.DataFrame(data=df, columns=columns)
+        # 99.9%分位数
+        up_limit = np.percentile(df[column].values, 99.99)
+        # 0.1%分位数
+        low_limit = np.percentile(df[column].values, 0.01)
+        df.loc[df[column] > up_limit, column] = up_limit
+        df.loc[df[column] < low_limit, column] = low_limit
 
-    for column in DefaultConfig.outlier_columns:
-        df[column] = df[column].apply(lambda x: np.log(x+1))
+    from sklearn import preprocessing
+
+    pt = preprocessing.PowerTransformer(method='box-cox', standardize=False)
+
+    df[DefaultConfig.outlier_columns] = pt.fit_transform(df[DefaultConfig.outlier_columns])
 
     return df
-
 
 
 def deal_outlier(df, **params):
@@ -112,15 +97,11 @@ def smote(X_train, y_train, **params):
     import pandas as pd
     from collections import Counter
 
-    # 过采样+欠采样
-    from imblearn.combine import SMOTETomek
-    smote_tomek = SMOTETomek(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, random_state=0, n_jobs=10)
-    train_X, train_y = smote_tomek.fit_sample(X_train, y_train)
-
-    # from imblearn.over_sampling import SMOTE
-    # smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
-    # train_X, train_y = smote.fit_sample(X_train, y_train)
+    from imblearn.over_sampling import SMOTE
+    smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
+    train_X, train_y = smote.fit_sample(X_train, y_train)
     print('Resampled dataset shape %s' % Counter(train_y))
+
 
     # X_train
     X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
@@ -135,33 +116,16 @@ def add_feature(df, **params):
     :param params:
     :return:
     """
-    import numpy as np
-    import pandas as pd
-    from sklearn import preprocessing
-
-    # 添加新的类别列
-    for column in DefaultConfig.encoder_columns:
-        df[column + '_label'] = df[column].apply(lambda x: str(round(x)))
-
-    # 获取要进行label_encoder的特征列
-    object_cols = list(df.dtypes[df.dtypes == np.object].index)
-
-    # 进行label_encoder
-    print('one_hot 处理的特征列： %s' % ' '.join(object_cols))
-    lbl = preprocessing.LabelEncoder()
-    for col in object_cols:
-        df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
-
-    # 进行mean_encoder
-    # print('mean_encoder 处理的特征列： %s' % ' '.join(object_cols))
-    # df[object_cols] = MeanEncoder(object_cols).fit_transform(df[object_cols].astype('str'))
-
-    # 类别变量的nunique特征 对cbt有用 提升在0.01左右
-    # for fea in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']:
-    #     gp1 = df.groupby('Parameter10')[fea].nunique().reset_index().rename(columns={fea: "Parameter10_%s_nuq_num" % fea})
-    #     gp2 = df.groupby(fea)['Parameter10'].nunique().reset_index().rename(columns={'Parameter10': "%s_Parameter10_nuq_num" % fea})
-    #     df = pd.merge(df, gp1, how='left', on=['Parameter10'])
-    #     df = pd.merge(df, gp2, how='left', on=[fea])
+    # 类别列
+    # for column_i in ['Parameter7']:
+    #     column_i_label = column_i + '_label'
+    #     df[column_i_label] = df[column_i].apply(lambda x: int(round(x)))
+    #     # 数值列
+    #     for column_j in DefaultConfig.outlier_columns:
+    #         stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min'])
+    #         stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j]
+    #         df = df.merge(stats, left_on=column_i, right_index=True, how='left')
+    #     del df[column_i_label]
 
     return df
 
@@ -204,10 +168,6 @@ def preprocessing(**params):
     # 标签列
     y_train = first_round_training_data['Quality_label']
 
-    # 分布变换
-    # X_test = max_min_scalar(X_test)
-    # X_train = max_min_scalar(X_train)
-
     # 待优化，效果很不好
     # # 处理异常值
     # result = deal_outlier(pd.concat([X_train, X_test], axis=0, ignore_index=True))
@@ -231,65 +191,22 @@ def preprocessing(**params):
     result.reset_index(inplace=True, drop=True)
 
     # 重新获取X_train
-    X_train = result[:X_train.shape[0]].reset_index(drop=True)
+    X_train = result[:X_train.shape[0]]
     print('X_train.shape: ', X_train.shape)
     # 重新获取X_test
-    X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]].reset_index(drop=True)
+    X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
     print('X_test.shape: ', X_test.shape)
 
-    # 过采样+欠采样 0.01的提升
+    # 过采样+欠采样
     X_train, y_train = smote(X_train=X_train, y_train=y_train)
-    # 注意：采样生成的是浮点型数据，记得转成整型
-    for column in DefaultConfig.encoder_columns:
-        if column + '_label' in list(X_train.columns):
-            X_train[column + '_label'] = X_train[column + '_label'].astype(int)
-            X_test[column + '_label'] = X_test[column + '_label'].astype(int).astype(float)
-        if column + '_bin' in list(X_train.columns):
-            X_train[column + '_bin'] = X_train[column + '_bin'].astype(int)
-            X_test[column + '_label'] = X_test[column + '_label'].astype(int).astype(float)
+
+    # 过采样后整型数据会变成浮点型数据
+    for column in X_train.columns:
+        if column not in DefaultConfig.original_columns:
+            X_train[column] = X_train[column].astype(int)
+            X_test[column] = X_test[column].astype(int)
 
     return X_train, y_train, X_test, testing_group
-
-
-def svm_model(X_train, y_train, X_test, testing_group, **params):
-    """
-    SVM 模型
-    :param X_train:
-    :param y_train:
-    :param X_test:
-    :param params:
-    :return:
-    """
-    from sklearn.svm import SVC
-    from sklearn.model_selection import GridSearchCV
-
-    # model = SVC(C=5, probability=True)
-    # param_grid = {
-    #               'C': [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    #               'gamma': [0.001, 0.0001],
-    #               'kernel': ['linear', 'rbf']}
-    # grid_search = GridSearchCV(model, param_grid, n_jobs=12, verbose=1)
-    # grid_search.fit(X_train, y_train)
-    #
-    # # 最佳参数
-    # best_parameters = grid_search.best_estimator_.get_params()
-    # for para, val in list(best_parameters.items()):
-    #     print(para, val)
-    #
-    # # 模型
-    # model = SVC(kernel=best_parameters['kernel'], C=best_parameters['C'], gamma=best_parameters['gamma'],
-    #             probability=True)
-
-    model = SVC(kernel='rbf', C=10, gamma=0.001, probability=True)
-    model.fit(X_train, y_train)
-
-    # 预测
-    prediction = model.predict(X_test)
-
-    # 保存结果
-    save_result(testing_group=testing_group, prediction=prediction)
-
-    return prediction
 
 
 def lgb_model(X_train, y_train, X_test, testing_group, **params):
@@ -314,7 +231,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     # 线上结论
     prediction = np.zeros((X_test.shape[0], 4))
     seeds = [2255, 80, 223344, 2019 * 2 + 1024, 332232111]
-    num_model_seed = 5
+    num_model_seed = 1
     print('training')
     for model_seed in range(num_model_seed):
         print('模型', model_seed + 1, '开始训练')
@@ -323,7 +240,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         skf = StratifiedKFold(n_splits=5, random_state=seeds[model_seed], shuffle=True)
 
         for index, (train_index, test_index) in enumerate(skf.split(X_train, y_train)):
-            print('%d 折' % index)
+            print(index)
             train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
                 train_index], y_train.iloc[test_index]
             train_data = lgb.Dataset(train_x, label=train_y)
@@ -343,7 +260,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 'seed': 42
             }
             bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
-                            verbose_eval=1000, early_stopping_rounds=1000)
+                            verbose_eval=1000, early_stopping_rounds=2019)
             oof_lgb[test_index] += bst.predict(test_x)
             prediction_lgb += bst.predict(X_test) / 5
             gc.collect()
@@ -352,79 +269,6 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         prediction += prediction_lgb / num_model_seed
         print('logloss', log_loss(pd.get_dummies(y_train).values, oof_lgb))
         print('ac', accuracy_score(y_train, np.argmax(oof_lgb, axis=1)))
-
-    print('logloss', log_loss(pd.get_dummies(y_train).values, oof))
-    print('ac', accuracy_score(y_train, np.argmax(oof, axis=1)))
-
-    sub = pd.DataFrame(data=testing_group.astype(int), columns=['Group'])
-    prob_cols = ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']
-    for i, f in enumerate(prob_cols):
-        sub[f] = prediction[:, i]
-    for i in prob_cols:
-        sub[i] = sub.groupby('Group')[i].transform('mean')
-    sub = sub.drop_duplicates()
-
-    sub.to_csv(path_or_buf=DefaultConfig.project_path + '/data/submit/' + DefaultConfig.select_model + '_submit.csv',
-               index=False, encoding='utf-8')
-    return sub
-
-
-def ctb_model(X_train, y_train, X_test, testing_group, **params):
-    """
-    ctb 模型
-    :param new_train:
-    :param y:
-    :param new_test:
-    :param columns:
-    :param params:
-    :return:
-    """
-    import gc
-    import numpy as np
-    from sklearn.model_selection import StratifiedKFold
-    import pandas as pd
-    from catboost import CatBoostClassifier
-    from sklearn.metrics import log_loss, accuracy_score
-
-    # 线下验证
-    oof = np.zeros((X_train.shape[0], 4))
-    # 线上结论
-    prediction = np.zeros((X_test.shape[0], 4))
-    seeds = [2255, 80, 223344, 2019 * 2 + 1024, 332232111]
-    num_model_seed = 5
-    print('training')
-    for model_seed in range(num_model_seed):
-        print('模型', model_seed + 1, '开始训练')
-        oof_ctb = np.zeros((X_train.shape[0], 4))
-        prediction_ctb = np.zeros((X_test.shape[0], 4))
-        skf = StratifiedKFold(n_splits=5, random_state=seeds[model_seed], shuffle=True)
-
-        for index, (train_index, test_index) in enumerate(skf.split(X_train, y_train)):
-            train_x, test_x, train_y, test_y = X_train.iloc[train_index, :], X_train.iloc[test_index, :], y_train.iloc[
-                train_index], y_train.iloc[test_index]
-
-            gc.collect()
-            cbt_params = {
-                'random_seed': 2019,
-                'iterations': 2019,
-                'learning_rate': 0.01,
-                'objective': 'MultiClass',
-                'classes_count': 4,
-                'max_depth': 7,
-                'loss_function': 'MultiClass',
-                'task_type': 'GPU',
-                'leaf_estimation_method': 'Newton'
-            }
-
-            bst = CatBoostClassifier(**cbt_params).fit(X=train_x, y=train_y, eval_set=(test_x, test_y), silent=True)
-            oof_ctb[test_index] += bst.predict_proba(test_x)
-            prediction_ctb += bst.predict_proba(X_test) / 5
-            gc.collect()
-
-        oof += oof_ctb / num_model_seed
-        prediction += prediction_ctb / num_model_seed
-        print('logloss', log_loss(pd.get_dummies(y_train).values, oof_ctb))
-        print('ac', accuracy_score(y_train, np.argmax(oof_ctb, axis=1)))
 
     print('logloss', log_loss(pd.get_dummies(y_train).values, oof))
     print('ac', accuracy_score(y_train, np.argmax(oof, axis=1)))
