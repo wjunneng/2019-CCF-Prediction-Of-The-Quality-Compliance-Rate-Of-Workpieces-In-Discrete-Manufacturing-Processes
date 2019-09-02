@@ -1,5 +1,17 @@
 from config import DefaultConfig
 
+import os
+import numpy as np
+import pandas as pd
+from gplearn.genetic import SymbolicTransformer
+from sklearn import preprocessing
+from collections import Counter
+from imblearn.over_sampling import SMOTE
+import gc
+from sklearn.model_selection import StratifiedKFold
+import lightgbm as lgb
+from sklearn.metrics import log_loss, accuracy_score
+
 
 def get_first_round_tesing_data(**params):
     """
@@ -7,8 +19,6 @@ def get_first_round_tesing_data(**params):
     :param params:
     :return:
     """
-    import pandas as pd
-
     first_round_testing_data = pd.read_csv(DefaultConfig.first_round_testing_data_path)
 
     return first_round_testing_data
@@ -20,73 +30,166 @@ def get_first_round_training_data(**params):
     :param params:
     :return:
     """
-    import pandas as pd
 
     first_round_training_data = pd.read_csv(DefaultConfig.first_round_training_data_path)
 
     return first_round_training_data
 
 
-def max_min_scalar(df, **params):
+def reduce_mem_usage(df, verbose=True):
+    """
+    减少内存消耗
+    :param df:
+    :param verbose:
+    :return:
+    """
+    numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+    start_mem = df.memory_usage().sum() / 1024 ** 2
+    for col in df.columns:
+        col_type = df[col].dtypes
+        if col_type in numerics:
+            c_min = df[col].min()
+            c_max = df[col].max()
+            if str(col_type)[:3] == 'int':
+                if c_min > np.iinfo(np.int8).min and c_max < np.iinfo(np.int8).max:
+                    df[col] = df[col].astype(np.int8)
+                elif c_min > np.iinfo(np.int16).min and c_max < np.iinfo(np.int16).max:
+                    df[col] = df[col].astype(np.int16)
+                elif c_min > np.iinfo(np.int32).min and c_max < np.iinfo(np.int32).max:
+                    df[col] = df[col].astype(np.int32)
+                elif c_min > np.iinfo(np.int64).min and c_max < np.iinfo(np.int64).max:
+                    df[col] = df[col].astype(np.int64)
+            else:
+                if c_min > np.finfo(np.float16).min and c_max < np.finfo(np.float16).max:
+                    df[col] = df[col].astype(np.float16)
+                elif c_min > np.finfo(np.float32).min and c_max < np.finfo(np.float32).max:
+                    df[col] = df[col].astype(np.float32)
+                else:
+                    df[col] = df[col].astype(np.float64)
+    end_mem = df.memory_usage().sum() / 1024 ** 2
+    if verbose: print('Mem. usage decreased to {:5.2f} Mb ({:.1f}% reduction)'.format(end_mem, 100 * (
+            start_mem - end_mem) / start_mem))
+    return df
+
+
+def add_feature(df, X_train, y_train, save=True, **params):
+    """
+    添加新的数值和类别特征
+    :param df:
+    :param params:
+    :return:
+    """
+    df = df[DefaultConfig.original_columns]
+
+    path = DefaultConfig.df_add_feature_cache_path
+
+    if os.path.exists(path) and DefaultConfig.no_replace_add_feature:
+        df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='add_feature', mode='r'))
+    else:
+        # ###########################################  添加类别列
+        # 添加新的类别列
+        for column in DefaultConfig.encoder_columns:
+            df[column + '_label'] = df[column].apply(lambda x: str(round(x)))
+
+        # 获取要进行label_encoder的特征列
+        object_cols = list(df.dtypes[df.dtypes == np.object].index)
+
+        # 进行label_encoder
+        print('处理的label列： %s' % ' '.join(object_cols))
+        lbl = preprocessing.LabelEncoder()
+        for col in object_cols:
+            df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
+
+        # ###########################################  添加数值列
+        # 生成的特征数
+        n_components = 10
+
+        function_set = ['add', 'sub', 'mul', 'div', 'sqrt', 'log', 'abs', 'neg', 'inv', 'max', 'min']
+
+        gp = SymbolicTransformer(generations=20, population_size=2000,
+                                 hall_of_fame=100, n_components=n_components,
+                                 function_set=function_set,
+                                 parsimony_coefficient=0.0005,
+                                 max_samples=0.9, verbose=1,
+                                 random_state=0, n_jobs=10)
+
+        gp.fit(X=X_train[DefaultConfig.outlier_columns], y=y_train)
+        gp_features = gp.transform(df[DefaultConfig.outlier_columns])
+
+        columns = list(df.columns)
+        for i in range(n_components):
+            columns.append(str(gp._best_programs[i]))
+
+        df = pd.DataFrame(data=np.hstack((df.values, gp_features)), columns=columns, index=None)
+
+        ####################################################### 效果不好 #####################################################
+        # 类别列
+        # for column_i in ['Parameter7']:
+        #     column_i_label = column_i + '_label'
+        #     df[column_i_label] = df[column_i].apply(lambda x: int(round(x)))
+        #     # 数值列
+        #     for column_j in DefaultConfig.outlier_columns:
+        #         stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min'])
+        #         stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j]
+        #         df = df.merge(stats, left_on=column_i, right_index=True, how='left')
+        #     del df[column_i_label]
+        ####################################################### 效果不好 #####################################################
+
+        if save:
+            df.to_hdf(path_or_buf=path, key='add_feature')
+
+    return df
+
+
+def convert(df, save=True, **params):
     """
     归一化
     :param df:
     :param params:
     :return:
     """
-    import numpy as np
+    path = DefaultConfig.df_convert_cache_path
 
-    max_limit = [3.9e+09, 1.4e+09, 2.9e+09, 3.7e+08, 70, 43, 2.4e+04, 7.6e+04, 6.1e+08, 1.5e+04]
-    params = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6', 'Parameter7',
-              'Parameter8', 'Parameter9', 'Parameter10']
+    if os.path.exists(path) and DefaultConfig.no_replace_convert:
+        df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='convert', mode='r'))
+    else:
+        max_limit = [3.9e+09, 1.4e+09, 2.9e+09, 3.7e+08, 70, 43, 2.4e+04, 7.6e+04, 6.1e+08, 1.5e+04]
+        params = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6', 'Parameter7',
+                  'Parameter8', 'Parameter9', 'Parameter10']
 
-    max_limit_params = dict(zip(params, max_limit))
+        max_limit_params = dict(zip(params, max_limit))
 
-    # 处理异常值
-    for column in DefaultConfig.outlier_columns:
-        tmp = max_limit_params[column]
-        df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
+        # 处理异常值
+        for column in DefaultConfig.outlier_columns:
+            tmp = max_limit_params[column]
+            df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
 
-        # 99.9%分位数
-        up_limit = np.percentile(df[column].values, 99.99)
-        # 0.1%分位数
-        low_limit = np.percentile(df[column].values, 0.01)
-        df.loc[df[column] > up_limit, column] = up_limit
-        df.loc[df[column] < low_limit, column] = low_limit
+            # 99.9%分位数
+            up_limit = np.percentile(df[column].values, 99.99)
+            # 0.1%分位数
+            low_limit = np.percentile(df[column].values, 0.01)
+            df.loc[df[column] > up_limit, column] = up_limit
+            df.loc[df[column] < low_limit, column] = low_limit
 
-    from sklearn import preprocessing
+        # 获取要进行yeo-johnson变换的特征列
+        columns = []
+        for column in list(df.columns):
+            if column not in DefaultConfig.encoder_columns and column not in DefaultConfig.label_columns:
+                columns.append(column)
 
-    pt = preprocessing.PowerTransformer(method='box-cox', standardize=False)
+        print('进行yeo-johnson的特征列：')
+        print(list(columns))
+        # yeo-johnson 变换处理
+        pt = preprocessing.PowerTransformer(method='yeo-johnson', standardize=True)
+        df[columns] = pt.fit_transform(df[columns])
 
-    df[DefaultConfig.outlier_columns] = pt.fit_transform(df[DefaultConfig.outlier_columns])
-
-    return df
-
-
-def deal_outlier(df, **params):
-    """
-    处理异常值
-    :param df:
-    :param params:
-    :return:
-    """
-    Q1 = df.describe().ix['25%', :].sort_index()
-    Q3 = df.describe().ix['75%', :].sort_index()
-
-    Q1_dict = Q1.to_dict()
-    Q3_dict = Q3.to_dict()
-
-    min = (Q3 - 3 * (Q3 - Q1)).to_dict()
-    max = (Q3 + 3 * (Q3 - Q1)).to_dict()
-
-    for column in DefaultConfig.outlier_columns:
-        df[column] = df[column].apply(lambda x: Q1_dict[column] if x <= min[column] else x)
-        df[column] = df[column].apply(lambda x: Q3_dict[column] if x >= max[column] else x)
+        if save:
+            df.to_hdf(path_or_buf=path, key='convert')
 
     return df
 
 
-def smote(X_train, y_train, **params):
+def smote(X_train, y_train, save=True, **params):
     """
     过采样+欠采样
     :param X_train:
@@ -94,50 +197,33 @@ def smote(X_train, y_train, **params):
     :param params:
     :return:
     """
-    import pandas as pd
-    from collections import Counter
+    path1 = DefaultConfig.X_train_smote_cache_path
+    path2 = DefaultConfig.y_train_smote_cache_path
 
-    from imblearn.over_sampling import SMOTE
-    smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
-    train_X, train_y = smote.fit_sample(X_train, y_train)
-    print('Resampled dataset shape %s' % Counter(train_y))
+    if os.path.exists(path1) and os.path.exists(path2) and DefaultConfig.no_replace_smote:
+        X_train = reduce_mem_usage(pd.read_hdf(path_or_buf=path1, key='X_train', mode='r'))
+        y_train = pd.read_hdf(path_or_buf=path2, key='y_train', mode='r')
+    else:
+        # smote 算法
+        smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
+        train_X, train_y = smote.fit_sample(X_train, y_train)
+        print('Resampled dataset shape %s' % Counter(train_y))
+        X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
+        y_train = pd.Series(train_y)
 
+        if save:
+            X_train.to_hdf(path_or_buf=path1, key='X_train')
+            y_train.to_hdf(path_or_buf=path2, key='y_train')
 
-    # X_train
-    X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
-
-    return X_train, pd.Series(train_y)
-
-
-def add_feature(df, **params):
-    """
-    添加新的类别特征
-    :param df:
-    :param params:
-    :return:
-    """
-    # 类别列
-    # for column_i in ['Parameter7']:
-    #     column_i_label = column_i + '_label'
-    #     df[column_i_label] = df[column_i].apply(lambda x: int(round(x)))
-    #     # 数值列
-    #     for column_j in DefaultConfig.outlier_columns:
-    #         stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min'])
-    #         stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j]
-    #         df = df.merge(stats, left_on=column_i, right_index=True, how='left')
-    #     del df[column_i_label]
-
-    return df
+    return X_train, y_train
 
 
-def preprocessing(**params):
+def preprocess(**params):
     """
     数据预处理
     :param params:
     :return:
     """
-    import pandas as pd
-
     # testing data
     first_round_testing_data = get_first_round_tesing_data()
     # training data
@@ -168,28 +254,17 @@ def preprocessing(**params):
     # 标签列
     y_train = first_round_training_data['Quality_label']
 
-    # 待优化，效果很不好
-    # # 处理异常值
-    # result = deal_outlier(pd.concat([X_train, X_test], axis=0, ignore_index=True))
-    # # 去除index
-    # result.reset_index(inplace=True, drop=True)
-    # # 重新获取X_train
-    # X_train = result[:X_train.shape[0]]
-    # print('X_train.shape: ', X_train.shape)
-    # # 重新获取X_test
-    # X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
-    # print('X_test.shape: ', X_test.shape)
-
-    # 处理类别变量 提升幅度在0.03左右
-    result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True))
+    # 一、
+    # 处理类别变量 提升幅度在0.003左右
+    result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True), X_train, y_train)
     # 去除index
     result.reset_index(inplace=True, drop=True)
 
+    # 二、
     # 分布变换
-    result = max_min_scalar(result)
+    result = convert(result)
     # 去除index
     result.reset_index(inplace=True, drop=True)
-
     # 重新获取X_train
     X_train = result[:X_train.shape[0]]
     print('X_train.shape: ', X_train.shape)
@@ -197,6 +272,7 @@ def preprocessing(**params):
     X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
     print('X_test.shape: ', X_test.shape)
 
+    # 三、
     # 过采样+欠采样
     X_train, y_train = smote(X_train=X_train, y_train=y_train)
 
@@ -219,13 +295,6 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     :param params:
     :return:
     """
-    import gc
-    import numpy as np
-    from sklearn.model_selection import StratifiedKFold
-    import pandas as pd
-    import lightgbm as lgb
-    from sklearn.metrics import log_loss, accuracy_score
-
     # 线下验证
     oof = np.zeros((X_train.shape[0], 4))
     # 线上结论
@@ -294,8 +363,6 @@ def save_result(testing_group, prediction, **params):
     :param params:
     :return:
     """
-    import pandas as pd
-
     df = pd.concat([testing_group, pd.Series(prediction)], axis=1, ignore_index=True)
     df.columns = ['Group', 'predictions']
 

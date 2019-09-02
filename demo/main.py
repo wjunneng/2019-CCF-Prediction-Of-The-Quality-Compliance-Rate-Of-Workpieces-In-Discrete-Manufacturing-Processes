@@ -1,5 +1,8 @@
 from util import *
 from config import *
+import warnings
+warnings.filterwarnings("ignore", message="numpy.dtype size changed")
+warnings.filterwarnings("ignore", message="numpy.ufunc size changed")
 
 
 def main():
@@ -8,7 +11,7 @@ def main():
     start = time.clock()
 
     # 获取训练集，标签列，测试集，group
-    X_train, y_train, X_test, testing_group = preprocessing()
+    X_train, y_train, X_test, testing_group = preprocess()
     print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
 
     if DefaultConfig.select_model is 'lgb':

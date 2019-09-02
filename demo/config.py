@@ -30,10 +30,29 @@ class DefaultConfig(object):
     outlier_columns = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4']
     # label_encoder类别变量
     encoder_columns = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
-
-    # no_replace
-    no_replace = False
+    # label列
+    label_columns = ['Parameter5_label', 'Parameter6_label', 'Parameter7_label', 'Parameter8_label', 'Parameter9_label',
+                     'Parameter10_label']
 
     # select_model
     select_model = 'lgb'
     # select_model = 'ctb'
+
+    # 一、
+    # add_feature_no_replace
+    no_replace_add_feature = True
+    # add_feature_df_cache
+    df_add_feature_cache_path = project_path + '/data/cache/df_add_feature.h5'
+
+    # 二、
+    # convert_no_replace
+    no_replace_convert = True
+    # convert_cache
+    df_convert_cache_path = project_path + '/data/cache/df_convert.h5'
+
+    # 三、
+    # smote_no_replace
+    no_replace_smote = True
+    # smote_cache
+    X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
+    y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'
