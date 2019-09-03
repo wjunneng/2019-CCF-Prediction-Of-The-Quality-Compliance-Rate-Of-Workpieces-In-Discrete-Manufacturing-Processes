@@ -36,23 +36,33 @@ class DefaultConfig(object):
 
     # select_model
     select_model = 'lgb'
-    # select_model = 'ctb'
+    # select_model = 'cbt'
 
     # 一、
     # add_feature_no_replace
     no_replace_add_feature = True
     # add_feature_df_cache
-    df_add_feature_cache_path = project_path + '/data/cache/df_add_feature.h5'
+    df_add_feature_lgb_cache_path = project_path + '/data/cache/df_add_feature_lgb.h5'
+    df_add_feature_xgb_cache_path = project_path + '/data/cache/df_add_feature_xgb.h5'
 
     # 二、
     # convert_no_replace
-    no_replace_convert = True
+    no_replace_convert = False
     # convert_cache
     df_convert_cache_path = project_path + '/data/cache/df_convert.h5'
 
     # 三、
     # smote_no_replace
-    no_replace_smote = True
+    no_replace_smote = False
     # smote_cache
     X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
     y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'
+
+    single_model = False
+
+    # lgb_submit
+    lgb_submit_path = project_path + '/data/submit/lgb_submit.csv'
+    # cbt_submit
+    cbt_submit_path = project_path + '/data/submit/cbt_submit.csv'
+
+    submit_path = project_path + '/data/submit/submit.csv'
