@@ -11,17 +11,17 @@ def main():
 
     start = time.clock()
 
-    # # 获取训练集，标签列，测试集，group
-    # X_train, y_train, X_test, testing_group = preprocess()
-    # print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
-    #
-    # if DefaultConfig.select_model is 'lgb':
-    #     lgb_model(X_train, y_train, X_test, testing_group)
-    # elif DefaultConfig.select_model is 'cbt':
-    #     cbt_model(X_train, y_train, X_test, testing_group)
-    #
-    # print('\n模型训练与预测 耗时： %s \n' % str(time.clock() - start))
-    # print(time.clock() - start)
+    # 获取训练集，标签列，测试集，group
+    X_train, y_train, X_test, testing_group = preprocess()
+    print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
+
+    if DefaultConfig.select_model is 'lgb':
+        lgb_model(X_train, y_train, X_test, testing_group)
+    elif DefaultConfig.select_model is 'cbt':
+        cbt_model(X_train, y_train, X_test, testing_group)
+
+    print('\n模型训练与预测 耗时： %s \n' % str(time.clock() - start))
+    print(time.clock() - start)
 
     merge()
 

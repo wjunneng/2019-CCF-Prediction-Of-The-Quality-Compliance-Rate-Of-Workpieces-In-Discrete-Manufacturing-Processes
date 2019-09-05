@@ -91,66 +91,56 @@ def add_feature(df, X_train, y_train, save=True, **params):
         elif DefaultConfig.select_model is 'cbt':
             df = reduce_mem_usage(pd.read_hdf(path_or_buf=cbt_path, key='add_feature', mode='r'))
     else:
-        if DefaultConfig.select_model is 'lgb':
-            for column in df[DefaultConfig.encoder_columns]:
-                del df[column]
+        # 添加新的类别列
+        for column in DefaultConfig.encoder_columns:
+            df[column + '_label'] = df[column].apply(lambda x: int(str(round(x))))
 
-            if save:
-                df.to_hdf(path_or_buf=lgb_path, key='add_feature')
-        elif DefaultConfig.select_model is 'cbt':
-            for column in DefaultConfig.outlier_columns:
-                del df[column]
+        # 获取要进行label_encoder的特征列
+        object_cols = list(df.dtypes[df.dtypes == np.object].index)
 
-            # ###########################################  添加类别列
-            # 添加新的类别列
-            for column in DefaultConfig.encoder_columns:
-                df[column + '_label'] = df[column].apply(lambda x: str(round(x)))
+        # 进行label_encoder
+        print('处理的label列： %s' % ' '.join(object_cols))
+        lbl = preprocessing.LabelEncoder()
+        for col in object_cols:
+            df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
 
-            # 获取要进行label_encoder的特征列
-            object_cols = list(df.dtypes[df.dtypes == np.object].index)
+        # ###########################################  添加数值列
+        # # 生成的特征数
+        # n_components = 10
+        # generations = 20
+        #
+        # function_set = ['add', 'sub', 'mul', 'div', 'sqrt', 'log', 'abs', 'neg', 'inv', 'max', 'min']
+        #
+        # gp = SymbolicTransformer(generations=generations, population_size=2000,
+        #                          hall_of_fame=100, n_components=n_components,
+        #                          function_set=function_set,
+        #                          parsimony_coefficient=0.0005,
+        #                          max_samples=0.9, verbose=1,
+        #                          random_state=0, n_jobs=10)
+        #
+        # gp.fit(X=X_train[DefaultConfig.outlier_columns], y=y_train)
+        # gp_features = gp.transform(df[DefaultConfig.outlier_columns])
+        #
+        # columns = list(df.columns)
+        # for i in range(n_components):
+        #     columns.append(str(gp._best_programs[i]))
+        #
+        # df = pd.DataFrame(data=np.hstack((df.values, gp_features)), columns=columns, index=None)
 
-            # 进行label_encoder
-            print('处理的label列： %s' % ' '.join(object_cols))
-            lbl = preprocessing.LabelEncoder()
-            for col in object_cols:
-                df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
+        # ###########################################  添加类别列
+        # 类别列
+        # for column_i in ['Parameter7']:
+        #     column_i_label = column_i + '_label'
+        #     df[column_i_label] = df[column_i].apply(lambda x: int(round(x)))
+        #     # 数值列
+        #     for column_j in DefaultConfig.outlier_columns:
+        #         stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min'])
+        #         stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j]
+        #         df = df.merge(stats, left_on=column_i, right_index=True, how='left')
+        #     del df[column_i_label]
 
-            # ###########################################  添加数值列
-            # 生成的特征数
-            n_components = 10
-
-            function_set = ['add', 'sub', 'mul', 'div', 'sqrt', 'log', 'abs', 'neg', 'inv', 'max', 'min']
-
-            gp = SymbolicTransformer(generations=20, population_size=2000,
-                                     hall_of_fame=100, n_components=n_components,
-                                     function_set=function_set,
-                                     parsimony_coefficient=0.0005,
-                                     max_samples=0.9, verbose=1,
-                                     random_state=0, n_jobs=10)
-
-            gp.fit(X=X_train[DefaultConfig.outlier_columns], y=y_train)
-            gp_features = gp.transform(df[DefaultConfig.outlier_columns])
-
-            columns = list(df.columns)
-            for i in range(n_components):
-                columns.append(str(gp._best_programs[i]))
-
-            df = pd.DataFrame(data=np.hstack((df.values, gp_features)), columns=columns, index=None)
-
-            # ###########################################  添加类别列
-            # 类别列
-            for column_i in ['Parameter7']:
-                column_i_label = column_i + '_label'
-                df[column_i_label] = df[column_i].apply(lambda x: int(round(x)))
-                # 数值列
-                for column_j in DefaultConfig.outlier_columns:
-                    stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min'])
-                    stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j]
-                    df = df.merge(stats, left_on=column_i, right_index=True, how='left')
-                del df[column_i_label]
-
-            if save:
-                df.to_hdf(path_or_buf=cbt_path, key='add_feature')
+        if save:
+            df.to_hdf(path_or_buf=cbt_path, key='add_feature')
     return df
 
 
@@ -177,12 +167,12 @@ def convert(df, save=True, **params):
             tmp = max_limit_params[column]
             df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
 
-            # 99.9%分位数
-            up_limit = np.percentile(df[column].values, 99.99)
-            # 0.1%分位数
-            low_limit = np.percentile(df[column].values, 0.01)
-            df.loc[df[column] > up_limit, column] = up_limit
-            df.loc[df[column] < low_limit, column] = low_limit
+            # 99.9%分位数 效果不太好
+            # up_limit = np.percentile(df[column].values, 99.99)
+            # # 0.1%分位数
+            # low_limit = np.percentile(df[column].values, 0.01)
+            # df.loc[df[column] > up_limit, column] = up_limit
+            # df.loc[df[column] < low_limit, column] = low_limit
 
         # 获取要进行yeo-johnson变换的特征列
         columns = []
@@ -218,7 +208,7 @@ def smote(X_train, y_train, save=True, **params):
         y_train = pd.read_hdf(path_or_buf=path2, key='y_train', mode='r')
     else:
         # smote 算法
-        smote = SMOTE(ratio={0: 2000, 1: 2000, 2: 3000, 3: 2000}, n_jobs=10)
+        smote = SMOTE(ratio={0: 1300, 1: 1600, 2: 3000, 3: 1000}, n_jobs=10)
         train_X, train_y = smote.fit_sample(X_train, y_train)
         print('Resampled dataset shape %s' % Counter(train_y))
         X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
@@ -314,7 +304,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
             'objective': 'multiclassova',
             'num_class': 4,
             'metric': 'multi_error',
-            'num_leaves': 42,
+            'num_leaves': 24,
             'learning_rate': 0.005,
             'feature_fraction': 0.9,
             'bagging_fraction': 0.9,
@@ -325,7 +315,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
             'reg_lambda': 2,
             'lambda_l1': 0,
             'lambda_l2': 1,
-            'num_threads': 8,
+            'num_threads': 10,
         }
         lgb_train = lgb.Dataset(X_train, y_train)
         gbm = lgb.train(params,
@@ -344,12 +334,13 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         prediction = np.zeros((X_test.shape[0], 4))
         seeds = [42, 2019, 223344, 2019 * 2 + 1024, 332232111]
         num_model_seed = 1
+        n_splits = 10
         print('training')
         for model_seed in range(num_model_seed):
             print('模型', model_seed + 1, '开始训练')
             oof_lgb = np.zeros((X_train.shape[0], 4))
             prediction_lgb = np.zeros((X_test.shape[0], 4))
-            skf = StratifiedKFold(n_splits=5, random_state=seeds[model_seed], shuffle=True)
+            skf = StratifiedKFold(n_splits=n_splits, random_state=seeds[model_seed], shuffle=True)
 
             for index, (train_index, test_index) in enumerate(skf.split(X_train, y_train)):
                 print(index)
@@ -359,20 +350,22 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 validation_data = lgb.Dataset(test_x, label=test_y)
                 gc.collect()
                 params = {
+                    'learning_rate': 0.01,
                     'boosting_type': 'gbdt',
-                    'objective': 'multiclassova',
+                    'objective': 'multiclass',
                     'num_class': 4,
-                    'metric': 'multi_error',
-                    'num_leaves': 64,
-                    'learning_rate': 0.001,
-                    'feature_fraction': 0.9,
-                    'bagging_fraction': 0.9,
-                    'num_threads': 10,
+                    'feature_fraction': 0.8,
+                    'bagging_fraction': 0.8,
+                    'bagging_freq': 5,
+                    'num_leaves': 100,
+                    'verbose': -1,
+                    'max_depth': 7,
+                    'seed': 42
                 }
-                bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=1500,
-                                verbose_eval=100, early_stopping_rounds=1300)
+                bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
+                                verbose_eval=1000, early_stopping_rounds=1000)
                 oof_lgb[test_index] += bst.predict(test_x, num_iteration=1300)
-                prediction_lgb += bst.predict(X_test, num_iteration=1300) / 5
+                prediction_lgb += bst.predict(X_test, num_iteration=1300) / n_splits
                 gc.collect()
 
             oof += oof_lgb / num_model_seed
@@ -428,8 +421,8 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
             train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
                 train_index], y_train.iloc[test_index]
             gc.collect()
-            cbt_model = cbt.CatBoostClassifier(iterations=1300, learning_rate=0.01, verbose=300, max_depth=7,
-                                               early_stopping_rounds=1000, task_type='GPU',
+            cbt_model = cbt.CatBoostClassifier(iterations=10000, learning_rate=0.001, verbose=300, max_depth=7,
+                                               early_stopping_rounds=2019, task_type='GPU',
                                                loss_function='MultiClass')
             cbt_model.fit(train_x, train_y, eval_set=(test_x, test_y))
             oof_cat[test_index] += cbt_model.predict_proba(test_x)

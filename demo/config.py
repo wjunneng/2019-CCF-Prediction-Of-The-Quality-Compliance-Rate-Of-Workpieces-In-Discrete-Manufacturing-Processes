@@ -40,7 +40,7 @@ class DefaultConfig(object):
 
     # 一、
     # add_feature_no_replace
-    no_replace_add_feature = True
+    no_replace_add_feature = False
     # add_feature_df_cache
     df_add_feature_lgb_cache_path = project_path + '/data/cache/df_add_feature_lgb.h5'
     df_add_feature_xgb_cache_path = project_path + '/data/cache/df_add_feature_xgb.h5'
@@ -58,7 +58,7 @@ class DefaultConfig(object):
     X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
     y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'
 
-    single_model = False
+    single_model = True
 
     # lgb_submit
     lgb_submit_path = project_path + '/data/submit/lgb_submit.csv'
