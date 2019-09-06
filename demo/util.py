@@ -82,14 +82,10 @@ def add_feature(df, X_train, y_train, save=True, **params):
     df = df[DefaultConfig.original_columns]
 
     lgb_path = DefaultConfig.df_add_feature_lgb_cache_path
-    cbt_path = DefaultConfig.df_add_feature_xgb_cache_path
 
-    if (os.path.exists(lgb_path) and DefaultConfig.no_replace_add_feature) or (
-            os.path.exists(cbt_path) and DefaultConfig.no_replace_add_feature):
+    if os.path.exists(lgb_path) and DefaultConfig.no_replace_add_feature:
         if DefaultConfig.select_model is 'lgb':
             df = reduce_mem_usage(pd.read_hdf(path_or_buf=lgb_path, key='add_feature', mode='r'))
-        elif DefaultConfig.select_model is 'cbt':
-            df = reduce_mem_usage(pd.read_hdf(path_or_buf=cbt_path, key='add_feature', mode='r'))
     else:
         # 添加新的类别列
         for column in DefaultConfig.encoder_columns:
@@ -97,8 +93,8 @@ def add_feature(df, X_train, y_train, save=True, **params):
 
         # ###########################################  添加数值列
         # 生成的特征数
-        n_components = 2
-        generations = 5
+        n_components = 4
+        generations = 10
 
         function_set = ['add', 'sub', 'mul', 'div', 'sqrt', 'log', 'abs', 'neg', 'inv', 'max', 'min']
 
@@ -157,13 +153,6 @@ def convert(df, save=True, **params):
         for column in DefaultConfig.outlier_columns:
             tmp = max_limit_params[column]
             df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
-
-            # 99.9%分位数 效果不太好
-            # up_limit = np.percentile(df[column].values, 99.99)
-            # # 0.1%分位数
-            # low_limit = np.percentile(df[column].values, 0.01)
-            # df.loc[df[column] > up_limit, column] = up_limit
-            # df.loc[df[column] < low_limit, column] = low_limit
 
         # 获取要进行yeo-johnson变换的特征列
         columns = []
