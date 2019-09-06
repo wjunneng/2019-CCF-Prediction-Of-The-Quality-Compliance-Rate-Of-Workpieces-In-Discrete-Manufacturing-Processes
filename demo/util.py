@@ -11,6 +11,8 @@ import gc
 from sklearn.model_selection import StratifiedKFold
 import lightgbm as lgb
 from sklearn.metrics import log_loss, accuracy_score
+from matplotlib import pyplot as plt
+from mean_encoder import MeanEncoder
 
 
 def get_first_round_tesing_data(**params):
@@ -72,7 +74,7 @@ def reduce_mem_usage(df, verbose=True):
     return df
 
 
-def add_feature(df, X_train, y_train, save=True, **params):
+def add_feature(df, X_train, y_train, X_test, save=True, **params):
     """
     添加新的数值和类别特征
     :param df:
@@ -81,13 +83,43 @@ def add_feature(df, X_train, y_train, save=True, **params):
     """
     df = df[DefaultConfig.original_columns]
 
-    lgb_path = DefaultConfig.df_add_feature_lgb_cache_path
+    path = DefaultConfig.df_add_feature_cache_path
 
-    if os.path.exists(lgb_path) and DefaultConfig.no_replace_add_feature:
+    if os.path.exists(path) and DefaultConfig.no_replace_add_feature:
         if DefaultConfig.select_model is 'lgb':
-            df = reduce_mem_usage(pd.read_hdf(path_or_buf=lgb_path, key='add_feature', mode='r'))
+            df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='add_feature', mode='r'))
     else:
-        # 添加新的类别列
+        # ###########################################  添加新的类别列
+        # 1.均值编码
+        # for column in DefaultConfig.encoder_columns:
+        #     # 声明需要平均数编码的特征
+        #     MeanEnocodeFeature = [column]
+        #     # 声明平均数编码的类
+        #     ME = MeanEncoder(MeanEnocodeFeature)
+        #     # 对训练数据集的X和y进行拟合
+        #     X_train = ME.fit_transform(X_train, y_train)
+        #     # 对测试集进行编码
+        #     X_test = ME.transform(X_test)
+        #
+        #     X_train[column + '_pred'] = (X_train[column + '_pred_0'] + X_train[column + '_pred_1'] + X_train[
+        #         column + '_pred_2'] + X_train[column + '_pred_3'])
+        #
+        #     del X_train[column + '_pred_0']
+        #     del X_train[column + '_pred_1']
+        #     del X_train[column + '_pred_2']
+        #     del X_train[column + '_pred_3']
+        #
+        #     X_test[column + '_pred'] = (X_test[column + '_pred_0'] + X_test[column + '_pred_1'] + X_test[
+        #         column + '_pred_2'] + X_test[column + '_pred_3'])
+        #
+        #     del X_test[column + '_pred_0']
+        #     del X_test[column + '_pred_1']
+        #     del X_test[column + '_pred_2']
+        #     del X_test[column + '_pred_3']
+        #
+        # df = pd.concat([X_train, X_test], axis=0, ignore_index=True)
+
+        # 2.简单地取整数
         for column in DefaultConfig.encoder_columns:
             df[column + '_label'] = df[column].apply(lambda x: int(str(round(x))))
 
@@ -127,7 +159,7 @@ def add_feature(df, X_train, y_train, save=True, **params):
         #     del df[column_i_label]
 
         if save:
-            df.to_hdf(path_or_buf=cbt_path, key='add_feature')
+            df.to_hdf(path_or_buf=path, key='add_feature')
     return df
 
 
@@ -188,7 +220,7 @@ def smote(X_train, y_train, save=True, **params):
         y_train = pd.read_hdf(path_or_buf=path2, key='y_train', mode='r')
     else:
         # smote 算法
-        smote = SMOTE(ratio={0: 1300, 1: 1600, 2: 3000, 3: 1000}, n_jobs=10)
+        smote = SMOTE(ratio={0: 1300, 1: 1600, 2: 3000, 3: 1000}, n_jobs=10, kind='svm')
         train_X, train_y = smote.fit_sample(X_train, y_train)
         print('Resampled dataset shape %s' % Counter(train_y))
         X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
@@ -239,7 +271,7 @@ def preprocess(**params):
 
     # # 一、
     # 处理类别变量 提升幅度在0.003左右
-    result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True), X_train, y_train)
+    result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True), X_train, y_train, X_test)
     # 去除index
     result.reset_index(inplace=True, drop=True)
 
@@ -278,6 +310,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     :param params:
     :return:
     """
+    feature_importance = None
     if DefaultConfig.single_model:
         params = {
             'boosting_type': 'gbdt',
@@ -316,12 +349,15 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         num_model_seed = 1
         n_splits = 10
         print('training')
+
         for model_seed in range(num_model_seed):
             print('模型', model_seed + 1, '开始训练')
             oof_lgb = np.zeros((X_train.shape[0], 4))
             prediction_lgb = np.zeros((X_test.shape[0], 4))
             skf = StratifiedKFold(n_splits=n_splits, random_state=seeds[model_seed], shuffle=True)
 
+            # 存放特征重要性
+            feature_importance_df = pd.DataFrame()
             for index, (train_index, test_index) in enumerate(skf.split(X_train, y_train)):
                 print(index)
                 train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
@@ -348,13 +384,47 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 prediction_lgb += bst.predict(X_test, num_iteration=1300) / n_splits
                 gc.collect()
 
+                fold_importance_df = pd.DataFrame()
+                fold_importance_df["feature"] = list(X_train.columns)
+                fold_importance_df["importance"] = bst.feature_importance(importance_type='split',
+                                                                          iteration=bst.best_iteration)
+                fold_importance_df["fold"] = index + 1
+                feature_importance_df = pd.concat([feature_importance_df, fold_importance_df], axis=0)
+
             oof += oof_lgb / num_model_seed
             prediction += prediction_lgb / num_model_seed
             print('logloss', log_loss(pd.get_dummies(y_train).values, oof_lgb))
             print('ac', accuracy_score(y_train, np.argmax(oof_lgb, axis=1)))
 
+            if feature_importance is None:
+                feature_importance = feature_importance_df
+            else:
+                feature_importance += feature_importance_df
+
+        feature_importance['importance'] /= num_model_seed
         print('logloss', log_loss(pd.get_dummies(y_train).values, oof))
         print('ac', accuracy_score(y_train, np.argmax(oof, axis=1)))
+
+    if feature_importance is not None:
+        feature_importance.to_hdf(path_or_buf=DefaultConfig.lgb_feature_cache_path, key='lgb')
+        # 读取feature_importance_df
+        feature_importance_df = reduce_mem_usage(
+            pd.read_hdf(path_or_buf=DefaultConfig.lgb_feature_cache_path, key='lgb', mode='r'))
+
+        plt.figure(figsize=(8, 8))
+        # 按照flod分组
+        group = feature_importance_df.groupby(by=['fold'])
+
+        result = []
+        for key, value in group:
+            value = value[['feature', 'importance']]
+
+            result.append(value)
+
+        result = pd.concat(result)
+        # 5折数据取平均值
+        result.groupby(['feature'])['importance'].agg('mean').sort_values(ascending=False).head(40).plot.barh()
+        plt.show()
 
     sub = pd.DataFrame(data=testing_group.astype(int), columns=['Group'])
     prob_cols = ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']

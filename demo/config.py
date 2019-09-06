@@ -40,10 +40,9 @@ class DefaultConfig(object):
 
     # 一、
     # add_feature_no_replace
-    no_replace_add_feature = True
+    no_replace_add_feature = False
     # add_feature_df_cache
-    df_add_feature_lgb_cache_path = project_path + '/data/cache/df_add_feature_lgb.h5'
-    df_add_feature_xgb_cache_path = project_path + '/data/cache/df_add_feature_xgb.h5'
+    df_add_feature_cache_path = project_path + '/data/cache/df_add_feature.h5'
 
     # 二、
     # convert_no_replace
@@ -66,3 +65,5 @@ class DefaultConfig(object):
     cbt_submit_path = project_path + '/data/submit/cbt_submit.csv'
 
     submit_path = project_path + '/data/submit/submit.csv'
+
+    lgb_feature_cache_path = project_path + '/data/cache/lgb_feature.h5'
