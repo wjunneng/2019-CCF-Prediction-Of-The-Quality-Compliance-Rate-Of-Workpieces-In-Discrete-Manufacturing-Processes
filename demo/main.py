@@ -15,6 +15,7 @@ def main():
     X_train, y_train, X_test, testing_group = preprocess()
     print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
 
+    print(X_train.columns)
     if DefaultConfig.select_model is 'lgb':
         lgb_model(X_train, y_train, X_test, testing_group)
     elif DefaultConfig.select_model is 'cbt':

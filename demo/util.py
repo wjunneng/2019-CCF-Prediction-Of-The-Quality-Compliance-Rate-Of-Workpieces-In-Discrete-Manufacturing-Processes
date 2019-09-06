@@ -95,37 +95,28 @@ def add_feature(df, X_train, y_train, save=True, **params):
         for column in DefaultConfig.encoder_columns:
             df[column + '_label'] = df[column].apply(lambda x: int(str(round(x))))
 
-        # 获取要进行label_encoder的特征列
-        object_cols = list(df.dtypes[df.dtypes == np.object].index)
-
-        # 进行label_encoder
-        print('处理的label列： %s' % ' '.join(object_cols))
-        lbl = preprocessing.LabelEncoder()
-        for col in object_cols:
-            df[col] = lbl.fit(df[col].astype('str')).transform(df[col].astype('str'))
-
         # ###########################################  添加数值列
-        # # 生成的特征数
-        # n_components = 10
-        # generations = 20
-        #
-        # function_set = ['add', 'sub', 'mul', 'div', 'sqrt', 'log', 'abs', 'neg', 'inv', 'max', 'min']
-        #
-        # gp = SymbolicTransformer(generations=generations, population_size=2000,
-        #                          hall_of_fame=100, n_components=n_components,
-        #                          function_set=function_set,
-        #                          parsimony_coefficient=0.0005,
-        #                          max_samples=0.9, verbose=1,
-        #                          random_state=0, n_jobs=10)
-        #
-        # gp.fit(X=X_train[DefaultConfig.outlier_columns], y=y_train)
-        # gp_features = gp.transform(df[DefaultConfig.outlier_columns])
-        #
-        # columns = list(df.columns)
-        # for i in range(n_components):
-        #     columns.append(str(gp._best_programs[i]))
-        #
-        # df = pd.DataFrame(data=np.hstack((df.values, gp_features)), columns=columns, index=None)
+        # 生成的特征数
+        n_components = 2
+        generations = 5
+
+        function_set = ['add', 'sub', 'mul', 'div', 'sqrt', 'log', 'abs', 'neg', 'inv', 'max', 'min']
+
+        gp = SymbolicTransformer(generations=generations, population_size=2000,
+                                 hall_of_fame=100, n_components=n_components,
+                                 function_set=function_set,
+                                 parsimony_coefficient=0.0005,
+                                 max_samples=0.9, verbose=1,
+                                 random_state=0, metric='spearman', n_jobs=10)
+
+        gp.fit(X=X_train[DefaultConfig.outlier_columns], y=y_train)
+        gp_features = gp.transform(df[DefaultConfig.outlier_columns])
+
+        columns = list(df.columns)
+        for i in range(n_components):
+            columns.append(str(gp._best_programs[i]))
+
+        df = pd.DataFrame(data=np.hstack((df.values, gp_features)), columns=columns, index=None)
 
         # ###########################################  添加类别列
         # 类别列
