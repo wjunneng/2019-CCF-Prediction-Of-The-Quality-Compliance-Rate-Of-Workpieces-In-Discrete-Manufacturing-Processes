@@ -126,7 +126,7 @@ def add_feature(df, X_train, y_train, X_test, save=True, **params):
         # ###########################################  添加数值列
         # 生成的特征数
         n_components = 4
-        generations = 10
+        generations = 20
 
         function_set = ['add', 'sub', 'mul', 'div', 'sqrt', 'log', 'abs', 'neg', 'inv', 'max', 'min']
 
@@ -186,7 +186,7 @@ def convert(df, save=True, **params):
             tmp = max_limit_params[column]
             df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
 
-        # 获取要进行yeo-johnson变换的特征列
+        # ########################################### 获取要进行yeo-johnson变换的特征列
         columns = []
         for column in list(df.columns):
             if column not in DefaultConfig.encoder_columns and column not in DefaultConfig.label_columns:
@@ -197,6 +197,10 @@ def convert(df, save=True, **params):
         # yeo-johnson 变换处理
         pt = preprocessing.PowerTransformer(method='yeo-johnson', standardize=True)
         df[columns] = pt.fit_transform(df[columns])
+
+        # ########################################### 进行log变换的特征列
+        for column in DefaultConfig.encoder_columns:
+            df[column] = df[column].apply(lambda x: np.log1p(x))
 
         if save:
             df.to_hdf(path_or_buf=path, key='convert')
