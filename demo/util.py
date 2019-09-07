@@ -74,55 +74,24 @@ def reduce_mem_usage(df, verbose=True):
     return df
 
 
-def add_feature(df, X_train, y_train, X_test, save=True, **params):
+def add_numerical_feature(df, X_train, y_train, save=True, **params):
     """
-    添加新的数值和类别特征
+    添加数值特征
     :param df:
+    :param X_train:
+    :param y_train:
+    :param X_test:
+    :param save:
     :param params:
     :return:
     """
     df = df[DefaultConfig.original_columns]
 
-    path = DefaultConfig.df_add_feature_cache_path
+    path = DefaultConfig.df_add_numerical_feature_cache_path
 
-    if os.path.exists(path) and DefaultConfig.no_replace_add_feature:
-        if DefaultConfig.select_model is 'lgb':
-            df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='add_feature', mode='r'))
+    if os.path.exists(path) and DefaultConfig.no_replace_add_numerical_feature:
+        df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='add_numerical_feature', mode='r'))
     else:
-        # ###########################################  添加新的类别列
-        # 1.均值编码
-        # for column in DefaultConfig.encoder_columns:
-        #     # 声明需要平均数编码的特征
-        #     MeanEnocodeFeature = [column]
-        #     # 声明平均数编码的类
-        #     ME = MeanEncoder(MeanEnocodeFeature)
-        #     # 对训练数据集的X和y进行拟合
-        #     X_train = ME.fit_transform(X_train, y_train)
-        #     # 对测试集进行编码
-        #     X_test = ME.transform(X_test)
-        #
-        #     X_train[column + '_pred'] = (X_train[column + '_pred_0'] + X_train[column + '_pred_1'] + X_train[
-        #         column + '_pred_2'] + X_train[column + '_pred_3'])
-        #
-        #     del X_train[column + '_pred_0']
-        #     del X_train[column + '_pred_1']
-        #     del X_train[column + '_pred_2']
-        #     del X_train[column + '_pred_3']
-        #
-        #     X_test[column + '_pred'] = (X_test[column + '_pred_0'] + X_test[column + '_pred_1'] + X_test[
-        #         column + '_pred_2'] + X_test[column + '_pred_3'])
-        #
-        #     del X_test[column + '_pred_0']
-        #     del X_test[column + '_pred_1']
-        #     del X_test[column + '_pred_2']
-        #     del X_test[column + '_pred_3']
-        #
-        # df = pd.concat([X_train, X_test], axis=0, ignore_index=True)
-
-        # 2.简单地取整数
-        for column in DefaultConfig.encoder_columns:
-            df[column + '_label'] = df[column].apply(lambda x: int(str(round(x))))
-
         # ###########################################  添加数值列
         # 生成的特征数
         n_components = 4
@@ -134,7 +103,7 @@ def add_feature(df, X_train, y_train, X_test, save=True, **params):
                                  hall_of_fame=100, n_components=n_components,
                                  function_set=function_set,
                                  parsimony_coefficient=0.0005,
-                                 max_samples=0.9, verbose=1,
+                                 max_samples=0.8, verbose=1,
                                  random_state=0, metric='spearman', n_jobs=10)
 
         gp.fit(X=X_train[DefaultConfig.outlier_columns], y=y_train)
@@ -146,20 +115,53 @@ def add_feature(df, X_train, y_train, X_test, save=True, **params):
 
         df = pd.DataFrame(data=np.hstack((df.values, gp_features)), columns=columns, index=None)
 
+        if save:
+            df.to_hdf(path_or_buf=path, key='add_numerical_feature')
+
+    return df
+
+
+def add_label_feature(df, X_train, y_train, X_test, save=True, **params):
+    """
+    添加类别特征
+    :param df:
+    :param params:
+    :return:
+    """
+    path = DefaultConfig.df_add_label_feature_cache_path
+
+    if os.path.exists(path) and DefaultConfig.no_replace_add_label_feature:
+        df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='add_label_feature', mode='r'))
+    else:
+        # ###########################################  添加新的类别列
+        # 1.均值编码
+        # for column in ['Parameter7', 'Parameter8']:
+        #     # 声明需要平均数编码的特征
+        #     MeanEnocodeFeature = [column]
+        #     # 声明平均数编码的类
+        #     ME = MeanEncoder(MeanEnocodeFeature)
+        #     # 对训练数据集的X和y进行拟合
+        #     X_train = ME.fit_transform(X_train, y_train)
+        #     # 对测试集进行编码
+        #     X_test = ME.transform(X_test)
+        #
+        # df = pd.concat([X_train, X_test], axis=0, ignore_index=True)
+
+        # 2.简单地取整数
+        for column in ['Parameter5', 'Parameter6', 'Parameter9', 'Parameter10']:
+            df[column + '_label'] = df[column].apply(lambda x: int(str(round(x))))
+
         # ###########################################  添加类别列
-        # 类别列
-        # for column_i in ['Parameter7']:
-        #     column_i_label = column_i + '_label'
-        #     df[column_i_label] = df[column_i].apply(lambda x: int(round(x)))
+        # # 类别列
+        # for column_i in ['Parameter7', 'Parameter8']:
         #     # 数值列
-        #     for column_j in DefaultConfig.outlier_columns:
+        #     for column_j in ['Parameter1']:
         #         stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min'])
         #         stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j]
         #         df = df.merge(stats, left_on=column_i, right_index=True, how='left')
-        #     del df[column_i_label]
 
         if save:
-            df.to_hdf(path_or_buf=path, key='add_feature')
+            df.to_hdf(path_or_buf=path, key='add_label_feature')
     return df
 
 
@@ -189,7 +191,7 @@ def convert(df, save=True, **params):
         # ########################################### 获取要进行yeo-johnson变换的特征列
         columns = []
         for column in list(df.columns):
-            if column not in DefaultConfig.encoder_columns and column not in DefaultConfig.label_columns:
+            if column not in DefaultConfig.encoder_columns and column not in DefaultConfig.label_columns and '_label' not in column:
                 columns.append(column)
 
         print('进行yeo-johnson的特征列：')
@@ -274,8 +276,10 @@ def preprocess(**params):
     y_train = first_round_training_data['Quality_label']
 
     # # 一、
+    # 添加数值列
+    result = add_numerical_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True), X_train, y_train)
     # 处理类别变量 提升幅度在0.003左右
-    result = add_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True), X_train, y_train, X_test)
+    result = add_label_feature(result, X_train, y_train, X_test)
     # 去除index
     result.reset_index(inplace=True, drop=True)
 
@@ -297,7 +301,7 @@ def preprocess(**params):
 
     # 过采样后整型数据会变成浮点型数据
     for column in X_train.columns:
-        if column not in DefaultConfig.original_columns:
+        if '_label' in column:
             X_train[column] = X_train[column].astype(int)
             X_test[column] = X_test[column].astype(int)
 
@@ -354,6 +358,42 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         n_splits = 10
         print('training')
 
+        params = {
+            'learning_rate': 0.01,
+            'boosting_type': 'gbdt',
+            'objective': 'multiclass',
+            'num_class': 4,
+            'feature_fraction': 0.8,
+            'bagging_fraction': 0.8,
+            'bagging_freq': 5,
+            'verbose': -1,
+            'max_depth': 7,
+            'seed': 42,
+            'num_leaves': 1000
+        }
+
+        # 寻找最优的num_leaves
+        # min_merror = np.inf
+        # for num_leaves in [150, 200, 250, 300, 500, 1000]:
+        #     params["num_leaves"] = num_leaves
+        #
+        #     cv_results = lgb.cv(params=params,
+        #                         train_set=lgb.Dataset(X_train, label=y_train),
+        #                         num_boost_round=2000,
+        #                         stratified=False,
+        #                         nfold=5,
+        #                         verbose_eval=50,
+        #                         seed=23,
+        #                         early_stopping_rounds=20)
+        #
+        #     mean_error = min(cv_results['multi_logloss-mean'])
+        #
+        #     if mean_error < min_merror:
+        #         min_merror = mean_error
+        #         params["num_leaves"] = num_leaves
+        #
+        # print('num_leaves: ', num_leaves)
+
         for model_seed in range(num_model_seed):
             print('模型', model_seed + 1, '开始训练')
             oof_lgb = np.zeros((X_train.shape[0], 4))
@@ -369,19 +409,6 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
                 train_data = lgb.Dataset(train_x, label=train_y)
                 validation_data = lgb.Dataset(test_x, label=test_y)
                 gc.collect()
-                params = {
-                    'learning_rate': 0.01,
-                    'boosting_type': 'gbdt',
-                    'objective': 'multiclass',
-                    'num_class': 4,
-                    'feature_fraction': 0.8,
-                    'bagging_fraction': 0.8,
-                    'bagging_freq': 5,
-                    'num_leaves': 100,
-                    'verbose': -1,
-                    'max_depth': 7,
-                    'seed': 42
-                }
                 bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
                                 verbose_eval=1000, early_stopping_rounds=1000)
                 oof_lgb[test_index] += bst.predict(test_x, num_iteration=1300)

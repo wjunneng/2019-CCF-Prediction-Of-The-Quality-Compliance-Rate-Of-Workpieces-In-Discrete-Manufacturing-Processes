@@ -39,10 +39,15 @@ class DefaultConfig(object):
     # select_model = 'cbt'
 
     # 一、
-    # add_feature_no_replace
-    no_replace_add_feature = False
-    # add_feature_df_cache
-    df_add_feature_cache_path = project_path + '/data/cache/df_add_feature.h5'
+    # add_numerical_feature_no_replace
+    no_replace_add_numerical_feature = True
+    # add_numerical_feature_df_cache
+    df_add_numerical_feature_cache_path = project_path + '/data/cache/df_add_numerical_feature.h5'
+
+    # add_label_feature_no_replace
+    no_replace_add_label_feature = False
+    # add_label_feature_df_cache
+    df_add_label_feature_cache_path = project_path + '/data/cache/df_add_label_feature.h5'
 
     # 二、
     # convert_no_replace
