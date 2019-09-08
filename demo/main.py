@@ -1,4 +1,4 @@
-from util import *
+from util_1 import *
 from config import *
 import warnings
 
@@ -16,14 +16,41 @@ def main():
     X_train, y_train, X_test, testing_group = preprocess()
     print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
 
-    for column in ['Parameter7_pred_3', 'Parameter8_pred_0', 'Parameter9_label', 'Parameter8_pred_2',
-                   'Parameter8_pred_3', 'Parameter8_pred_1']:
-        if column in X_test.columns and column in X_train.columns:
-            del X_train[column]
-            del X_test[column]
+    # columns = ['Parameter1',
+    #            'Parameter4',
+    #            'Parameter2',
+    #            'inv(div(max(min(X3, X1), abs(min(X3, X1))), log(div(log(max(min(X3, X1), abs(log(div(max(min(X3, X1), abs(log(sqrt(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))))), log(mul(-0.088, X2))))))',
+    #            'div(sqrt(sub(X2, X3)), div(max(min(X3, X1), inv(inv(add(inv(sqrt(X2)), X2)))), log(div(sqrt(min(X3, X1)), log(mul(-0.088, X2))))))',
+    #            'inv(div(max(min(X3, X1), abs(log(inv(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))',
+    #            'inv(div(max(sqrt(X2), abs(log(inv(max(X0, X2))))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(div(sqrt(min(X3, X1)), log(mul(-0.088, X2))))))))',
+    #            'Parameter3',
+    #            'Parameter5',
+    #            'Parameter6',
+    #
+    #            'Parameter10_pred_0',
+    #            'Parameter10_pred_3',
+    #            'Parameter10_pred_1',
+    #            'Parameter10_pred_2',
+    #            'Parameter10',
+    #            'Parameter9',
+    #            'Parameter8',
+    #            'Parameter7',
+    #            'min_Attribute1',
+    #            'min_Attribute3']
+    # print(columns)
+    # X_train = X_train[columns]
+    # X_test = X_test[columns]
 
-    print(list(X_train.columns))
-    print(len(X_train.columns))
+
+    # ############################################# cgb
+    columns = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10',
+               'Parameter10_pred_0', 'Parameter10_pred_3', 'Parameter10_pred_1', 'Parameter10_pred_2']
+
+    X_train = X_train[columns]
+    X_test = X_test[columns]
+    # ############################################# cgb
+
+
     if DefaultConfig.select_model is 'lgb':
         lgb_model(X_train, y_train, X_test, testing_group)
     elif DefaultConfig.select_model is 'cbt':

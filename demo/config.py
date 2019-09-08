@@ -23,46 +23,49 @@ class DefaultConfig(object):
     # submit_example
     submit_example_path = project_path + '/data/original/submit_example.csv'
 
-    # 原始特征列
-    original_columns = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6',
-                        'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
-    # 处理异常类别变量
-    outlier_columns = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4']
-    # label_encoder类别变量
-    encoder_columns = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
-    # label列
-    label_columns = ['Parameter5_label', 'Parameter6_label', 'Parameter7_label', 'Parameter8_label', 'Parameter9_label',
-                     'Parameter10_label']
+    # ######################################### Parameter
+    # Parameter
+    parameter_features = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6',
+                          'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
+    # numerical
+    parameter_numerical_features = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4']
+    # label
+    parameter_label_features = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
 
-    # select_model
-    select_model = 'lgb'
-    # select_model = 'cbt'
+    # ######################################### Attribute
+    # attribute
+    attribute_features = ['Attribute1', 'Attribute2', 'Attribute3', 'Attribute4', 'Attribute5', 'Attribute6',
+                          'Attribute7', 'Attribute8', 'Attribute9', 'Attribute10']
+    # numerical
+    attribute_numerical_features = ['Attribute1', 'Attribute2', 'Attribute3']
+    # label
+    attribute_label_features = ['Attribute4', 'Attribute5', 'Attribute6', 'Attribute7', 'Attribute8', 'Attribute9',
+                                'Attribute10']
 
-    # 一、
+    # ######################################### select_model
+    # select_model = 'lgb'
+    select_model = 'cbt'
+
+    # ######################################### 一、normalization
+    no_replace_normalization = False
+    df_normalization_cache_path = project_path + '/data/cache/df_normalization.h5'
+
+    # ######################################### 二、add_numerical_feature/add_label_feature
     # add_numerical_feature_no_replace
-    no_replace_add_numerical_feature = True
+    no_replace_add_numerical_feature = False
     # add_numerical_feature_df_cache
     df_add_numerical_feature_cache_path = project_path + '/data/cache/df_add_numerical_feature.h5'
-
     # add_label_feature_no_replace
     no_replace_add_label_feature = False
     # add_label_feature_df_cache
     df_add_label_feature_cache_path = project_path + '/data/cache/df_add_label_feature.h5'
 
-    # 二、
-    # convert_no_replace
-    no_replace_convert = False
-    # convert_cache
-    df_convert_cache_path = project_path + '/data/cache/df_convert.h5'
-
-    # 三、
+    # ######################################### 四、smote
     # smote_no_replace
     no_replace_smote = False
     # smote_cache
     X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
     y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'
-
-    single_model = False
 
     # lgb_submit
     lgb_submit_path = project_path + '/data/submit/lgb_submit.csv'
@@ -72,3 +75,4 @@ class DefaultConfig(object):
     submit_path = project_path + '/data/submit/submit.csv'
 
     lgb_feature_cache_path = project_path + '/data/cache/lgb_feature.h5'
+    cbt_feature_cache_path = project_path + '/data/cache/cbt_feature.h5'
