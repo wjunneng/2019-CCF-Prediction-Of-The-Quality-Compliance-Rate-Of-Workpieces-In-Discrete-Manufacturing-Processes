@@ -43,26 +43,26 @@ class DefaultConfig(object):
                                 'Attribute10']
 
     # ######################################### select_model
-    # select_model = 'lgb'
-    select_model = 'cbt'
+    select_model = 'lgb'
+    # select_model = 'cbt'
 
     # ######################################### 一、normalization
-    no_replace_normalization = False
+    no_replace_normalization = True
     df_normalization_cache_path = project_path + '/data/cache/df_normalization.h5'
 
     # ######################################### 二、add_numerical_feature/add_label_feature
     # add_numerical_feature_no_replace
-    no_replace_add_numerical_feature = False
+    no_replace_add_numerical_feature = True
     # add_numerical_feature_df_cache
     df_add_numerical_feature_cache_path = project_path + '/data/cache/df_add_numerical_feature.h5'
     # add_label_feature_no_replace
-    no_replace_add_label_feature = False
+    no_replace_add_label_feature = True
     # add_label_feature_df_cache
     df_add_label_feature_cache_path = project_path + '/data/cache/df_add_label_feature.h5'
 
     # ######################################### 四、smote
     # smote_no_replace
-    no_replace_smote = False
+    no_replace_smote = True
     # smote_cache
     X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
     y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'

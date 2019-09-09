@@ -74,6 +74,50 @@ def reduce_mem_usage(df, verbose=True):
     return df
 
 
+def normalization(X_train, X_test, save=True, **params):
+    """
+    数据进行规范化
+    :param df:
+    :param params:
+    :return:
+    """
+    path = DefaultConfig.df_normalization_cache_path
+
+    if os.path.exists(path) and DefaultConfig.no_replace_normalization:
+        df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='normalization', mode='r'))
+    else:
+        # ########################################### 要进行范围限制的特征列
+        max_limit = [3.9e+09, 1.4e+09, 2.9e+09, 3.7e+08, 70, 43, 2.4e+04, 7.6e+04, 6.1e+08, 1.5e+04,
+                     1.2e+07, 3.2e+08, 5.1e+09, 6.3e+07, 6.4e+09, 2.6e+07, 8.5e+09, 5.6e+10, 1.8e+12, 2.0e+11]
+
+        params = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6', 'Parameter7',
+                  'Parameter8', 'Parameter9', 'Parameter10', 'Attribute1', 'Attribute2', 'Attribute3', 'Attribute4'
+            , 'Attribute5', 'Attribute6', 'Attribute7', 'Attribute8', 'Attribute9', 'Attribute10']
+
+        max_limit_params = dict(zip(params, max_limit))
+
+        # 处理异常值
+        for column in params:
+            tmp = max_limit_params[column]
+            X_train[column] = X_train[column].apply(lambda x: tmp if x > tmp else x)
+            if column in list(X_test.columns):
+                X_test[column] = X_test[column].apply(lambda x: tmp if x > tmp else x)
+
+        df = pd.concat([X_train, X_test], axis=0, ignore_index=True)
+
+        # ########################################### 要进行yeo-johnson变换的特征列
+        print('进行yeo-johnson变换的特征列：')
+        print(DefaultConfig.parameter_numerical_features)
+        pt = preprocessing.PowerTransformer(method='yeo-johnson', standardize=True)
+        df[DefaultConfig.parameter_numerical_features] = pt.fit_transform(
+            df[DefaultConfig.parameter_numerical_features])
+
+        if save:
+            df.to_hdf(path_or_buf=path, key='normalization')
+
+    return df
+
+
 def add_numerical_feature(df, X_train, y_train, save=True, **params):
     """
     添加数值特征
@@ -85,8 +129,6 @@ def add_numerical_feature(df, X_train, y_train, save=True, **params):
     :param params:
     :return:
     """
-    df = df[DefaultConfig.original_columns]
-
     path = DefaultConfig.df_add_numerical_feature_cache_path
 
     if os.path.exists(path) and DefaultConfig.no_replace_add_numerical_feature:
@@ -106,8 +148,8 @@ def add_numerical_feature(df, X_train, y_train, save=True, **params):
                                  max_samples=0.8, verbose=1,
                                  random_state=0, metric='spearman', n_jobs=10)
 
-        gp.fit(X=X_train[DefaultConfig.outlier_columns], y=y_train)
-        gp_features = gp.transform(df[DefaultConfig.outlier_columns])
+        gp.fit(X=X_train[DefaultConfig.parameter_numerical_features], y=y_train)
+        gp_features = gp.transform(df[DefaultConfig.parameter_numerical_features])
 
         columns = list(df.columns)
         for i in range(n_components):
@@ -134,8 +176,9 @@ def add_label_feature(df, X_train, y_train, X_test, save=True, **params):
         df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='add_label_feature', mode='r'))
     else:
         # ###########################################  添加新的类别列
+        columns = ['Parameter10']
         # 1.均值编码
-        for column in ['Parameter10']:
+        for column in columns:
             # 声明需要平均数编码的特征
             MeanEnocodeFeature = [column]
             # 声明平均数编码的类
@@ -145,70 +188,28 @@ def add_label_feature(df, X_train, y_train, X_test, save=True, **params):
             # 对测试集进行编码
             X_test = ME.transform(X_test)
 
-        df.reset_index(drop=True, inplace=True)
-        df[X_train.columns] = pd.concat([X_train, X_test], axis=0, ignore_index=True)
+        columns = [i for i in list(X_train.columns) if i not in list(df.columns)]
+        df[columns] = pd.concat([X_train[columns], X_test[columns]], axis=0, ignore_index=True)
 
         # 2.简单地取整数
-        for column in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9']:
-            df[column + '_label'] = df[column].apply(lambda x: int(str(round(x))))
+        for column in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']:
+            df[column + '_label'] = df[column].apply(lambda x: int(round(x)))
 
         # ###########################################  添加类别列
-        # 类别列
-        for column_i in ['Parameter10']:
-            # 数值列
-            for column_j in ['Attribute1', 'Attribute2', 'Attribute3']:
-                stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min', 'std', 'sum'])
-                stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j, 'std_' + column_j,
-                                 'sum_' + column_j]
-                df = df.merge(stats, left_on=column_i, right_index=True, how='left')
+        # # 类别列
+        # for column_i in ['Parameter7']:
+        #     # 数值列
+        #     for column_j in ['Attribute1', 'Attribute2', 'Attribute3']:
+        #         stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min', 'std', 'sum'])
+        #         stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j, 'std_' + column_j, 'sum_' + column_j]
+        #         df = df.merge(stats, left_on=column_i, right_index=True, how='left')
+
+        # ###########################################  删除属性列
+        for column in DefaultConfig.attribute_features:
+            del df[column]
 
         if save:
             df.to_hdf(path_or_buf=path, key='add_label_feature')
-    return df
-
-
-def convert(df, save=True, **params):
-    """
-    归一化
-    :param df:
-    :param params:
-    :return:
-    """
-    path = DefaultConfig.df_convert_cache_path
-
-    if os.path.exists(path) and DefaultConfig.no_replace_convert:
-        df = reduce_mem_usage(pd.read_hdf(path_or_buf=path, key='convert', mode='r'))
-    else:
-        max_limit = [3.9e+09, 1.4e+09, 2.9e+09, 3.7e+08, 70, 43, 2.4e+04, 7.6e+04, 6.1e+08, 1.5e+04]
-        params = ['Parameter1', 'Parameter2', 'Parameter3', 'Parameter4', 'Parameter5', 'Parameter6', 'Parameter7',
-                  'Parameter8', 'Parameter9', 'Parameter10']
-
-        max_limit_params = dict(zip(params, max_limit))
-
-        # 处理异常值
-        for column in DefaultConfig.outlier_columns:
-            tmp = max_limit_params[column]
-            df[column] = df[column].apply(lambda x: tmp if x > tmp else x)
-
-        # ########################################### 获取要进行yeo-johnson变换的特征列
-        columns = []
-        for column in list(df.columns):
-            if column not in DefaultConfig.encoder_columns and column not in DefaultConfig.label_columns and '_label' not in column:
-                columns.append(column)
-
-        print('进行yeo-johnson的特征列：')
-        print(list(columns))
-        # yeo-johnson 变换处理
-        pt = preprocessing.PowerTransformer(method='yeo-johnson', standardize=True)
-        df[columns] = pt.fit_transform(df[columns])
-
-        # ########################################### 进行log变换的特征列
-        for column in DefaultConfig.encoder_columns:
-            df[column] = df[column].apply(lambda x: np.log1p(x))
-
-        if save:
-            df.to_hdf(path_or_buf=path, key='convert')
-
     return df
 
 
@@ -252,10 +253,6 @@ def preprocess(**params):
     # training data
     first_round_training_data = get_first_round_training_data()
 
-    # 选中的特征列
-    select_columns = ['Parameter1', 'Parameter4', 'Parameter2', 'Parameter3', 'Parameter5', 'Parameter6', 'Parameter7',
-                      'Parameter8', 'Parameter9', 'Parameter10']
-
     # Quality_label
     first_round_training_data['Quality_label'] = first_round_training_data['Quality_label'].apply(
         lambda x: 3 if x == 'Fail' else x)
@@ -270,33 +267,39 @@ def preprocess(**params):
     testing_group = first_round_testing_data['Group']
 
     # 测试集
-    X_test = first_round_testing_data[select_columns]
+    X_test = first_round_testing_data.loc[:, DefaultConfig.parameter_features]
 
     # 训练集
-    X_train = first_round_training_data[select_columns]
+    X_train = first_round_training_data.loc[:, DefaultConfig.parameter_features + DefaultConfig.attribute_features]
     # 标签列
     y_train = first_round_training_data['Quality_label']
 
-    # # 一、
-    # 添加数值列
-    result = add_numerical_feature(pd.concat([X_train, X_test], axis=0, ignore_index=True), X_train, y_train)
-    # 处理类别变量
-
-    result = add_label_feature(result, X_train, y_train, X_test)
-    # 去除index
-    result.reset_index(inplace=True, drop=True)
+    # 一、
+    # 数据进行规范化
+    df = normalization(X_train, X_test)
 
     # 二、
-    # 分布变换
-    result = convert(result)
-    # 去除index
-    result.reset_index(inplace=True, drop=True)
+    if DefaultConfig.select_model is not 'cbt':
+        # 添加数值列
+        df = add_numerical_feature(df, X_train, y_train)
+    # 处理类别变量
+    df = add_label_feature(df, X_train, y_train, X_test)
+
+    # 三、
     # 重新获取X_train
-    X_train = result[:X_train.shape[0]]
+    X_train = df[:X_train.shape[0]]
     print('X_train.shape: ', X_train.shape)
     # 重新获取X_test
-    X_test = result[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
+    X_test = df[X_train.shape[0]:X_train.shape[0] + y_train.shape[0]]
     print('X_test.shape: ', X_test.shape)
+
+    print('X_train.na:')
+    print(np.where(pd.isna(X_train)))
+    print('X_test.na:')
+    print(np.where(pd.isna(X_test)))
+
+    X_train = X_train.fillna(0)
+    X_test = X_test.fillna(0)
 
     # 三、
     # 过采样+欠采样
@@ -426,6 +429,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
             result.append(value)
 
         result = pd.concat(result)
+        print(result.groupby(['feature'])['importance'].agg('mean').sort_values(ascending=False).head(40))
         # 5折数据取平均值
         result.groupby(['feature'])['importance'].agg('mean').sort_values(ascending=False).head(40).plot.barh()
         plt.show()
@@ -460,14 +464,13 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
     import catboost as cbt
     from sklearn.metrics import log_loss
 
-    print('xgb train...')
+    print('cbt train...')
     feature_importance = None
     oof = np.zeros((X_train.shape[0], 4))
     prediction = np.zeros((X_test.shape[0], 4))
-    seeds = [42, 2019, 2019 * 2 + 1024, 4096, 2048, 1024]
+    seeds = [19970101, 2019 * 2 + 1024, 4096, 2048, 1024]
     num_model_seed = 1
     n_splits = 5
-    print('n_splits:', n_splits)
     for model_seed in range(num_model_seed):
         print(model_seed + 1)
         oof_cat = np.zeros((X_train.shape[0], 4))
@@ -481,7 +484,7 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
             train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
                 train_index], y_train.iloc[test_index]
             gc.collect()
-            bst = cbt.CatBoostClassifier(iterations=800, learning_rate=0.01, verbose=300,
+            bst = cbt.CatBoostClassifier(iterations=1000, learning_rate=0.01, verbose=300,
                                          early_stopping_rounds=200, task_type='GPU',
                                          loss_function='MultiClass')
             bst.fit(train_x, train_y, eval_set=(test_x, test_y))
@@ -499,7 +502,6 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
         prediction += prediction_cat / num_model_seed
         print('logloss', log_loss(pd.get_dummies(y_train).values, oof_cat))
         print('ac', accuracy_score(y_train, np.argmax(oof_cat, axis=1)))
-        print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[y_train] - oof_cat)) / 480))
 
         if feature_importance is None:
             feature_importance = feature_importance_df
@@ -509,7 +511,6 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
     feature_importance['importance'] /= num_model_seed
     print('logloss', log_loss(pd.get_dummies(y_train).values, oof))
     print('ac', accuracy_score(y_train, np.argmax(oof, axis=1)))
-    print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[y_train] - oof)) / 480))
 
     if feature_importance is not None:
         feature_importance.to_hdf(path_or_buf=DefaultConfig.cbt_feature_cache_path, key='cbt')
@@ -528,6 +529,7 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
             result.append(value)
 
         result = pd.concat(result)
+        print(result.groupby(['feature'])['importance'].agg('mean').sort_values(ascending=False).head(40))
         # 5折数据取平均值
         result.groupby(['feature'])['importance'].agg('mean').sort_values(ascending=False).head(40).plot.barh()
         plt.show()
@@ -578,14 +580,14 @@ def merge(**params):
     lgb_submit = pd.read_csv(filepath_or_buffer=DefaultConfig.lgb_submit_path)
     cbt_submit = pd.read_csv(filepath_or_buffer=DefaultConfig.cbt_submit_path)
 
-    lgb_submit['sum'] = 0
+    # lgb_submit['sum'] = 0
     for column in ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']:
-        lgb_submit[column] = (0.7 * lgb_submit[column] + 0.3 * cbt_submit[column])
-        lgb_submit['sum'] += lgb_submit[column]
-
-    for column in ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']:
-        lgb_submit[column] /= lgb_submit['sum']
-
-    del lgb_submit['sum']
+        lgb_submit[column] = (0.5 * lgb_submit[column] + 0.5 * cbt_submit[column])
+    #     lgb_submit['sum'] += lgb_submit[column]
+    #
+    # for column in ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']:
+    #     lgb_submit[column] /= lgb_submit['sum']
+    #
+    # del lgb_submit['sum']
 
     lgb_submit.to_csv(DefaultConfig.submit_path, encoding='utf-8', index=None)
