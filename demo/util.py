@@ -587,7 +587,7 @@ def merge(**params):
 
     # lgb_submit['sum'] = 0
     for column in DefaultConfig.columns:
-        lgb_submit[column] = (0.5 * lgb_submit[column] + 0.5 * cbt_submit[column])
+        lgb_submit[column] = (0.6 * lgb_submit[column] + 0.4 * cbt_submit[column])
     #     lgb_submit['sum'] += lgb_submit[column]
     #
     # for column in ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']:
@@ -608,8 +608,9 @@ def caculate_rate(**params):
 
     df = pd.read_csv(filepath_or_buffer=path, encoding='utf-8')
 
+    # 0.855
     # ['Excellent ratio',   'Good ratio',        'Pass ratio',       'Fail ratio']
-    # 0.18341747833383623    0.2357518420053725  0.43874376959924055  0.14208691006155078
+    # 0.1711159138196257    0.2560259533930791  0.4284821074119886  0.14437602537530658
     for column in DefaultConfig.columns:
         print(df[column].mean())
 
