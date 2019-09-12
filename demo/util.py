@@ -195,14 +195,18 @@ def add_label_feature(df, X_train, y_train, X_test, save=True, **params):
         for column in ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']:
             df[column + '_label'] = df[column].apply(lambda x: int(round(x)))
 
+        # 3.数值列
+        df['Parameter4_Parameter1'] = df['Parameter4'] - df['Parameter1']
+
         # ###########################################  添加类别列
         # # 类别列
-        # for column_i in ['Parameter7']:
-        #     # 数值列
-        #     for column_j in ['Attribute1', 'Attribute2', 'Attribute3']:
-        #         stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min', 'std', 'sum'])
-        #         stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j, 'std_' + column_j, 'sum_' + column_j]
-        #         df = df.merge(stats, left_on=column_i, right_index=True, how='left')
+        for column_i in ['Parameter10']:
+            # 数值列
+            for column_j in ['Parameter1']:
+                stats = df.groupby(column_i)[column_j].agg(['mean', 'max', 'min', 'std', 'sum'])
+                stats.columns = ['mean_' + column_j, 'max_' + column_j, 'min_' + column_j, 'std_' + column_j,
+                                 'sum_' + column_j]
+                df = df.merge(stats, left_on=column_i, right_index=True, how='left')
 
         # ###########################################  删除属性列
         for column in DefaultConfig.attribute_features:
@@ -229,7 +233,7 @@ def smote(X_train, y_train, save=True, **params):
         y_train = pd.read_hdf(path_or_buf=path2, key='y_train', mode='r')
     else:
         # smote 算法
-        smote = SMOTE(ratio={0: 1300, 1: 1600, 2: 3000, 3: 1000}, n_jobs=10, kind='svm')
+        smote = SMOTE(ratio={0: 1434, 1: 1857, 2: 3387, 3: 1020}, n_jobs=10, kind='svm')
         train_X, train_y = smote.fit_sample(X_train, y_train)
         print('Resampled dataset shape %s' % Counter(train_y))
         X_train = pd.DataFrame(data=train_X, columns=X_train.columns)
@@ -302,14 +306,15 @@ def preprocess(**params):
     X_test = X_test.fillna(0)
 
     # 三、
-    # 过采样+欠采样
-    X_train, y_train = smote(X_train=X_train, y_train=y_train)
+    if DefaultConfig.select_model is 'lgb':
+        # 过采样+欠采样 效果好
+        X_train, y_train = smote(X_train=X_train, y_train=y_train)
 
-    # 过采样后整型数据会变成浮点型数据
-    for column in X_train.columns:
-        if '_label' in column:
-            X_train[column] = X_train[column].astype(int)
-            X_test[column] = X_test[column].astype(int)
+        # 过采样后整型数据会变成浮点型数据
+        for column in X_train.columns:
+            if '_label' in column:
+                X_train[column] = X_train[column].astype(int)
+                X_test[column] = X_test[column].astype(int)
 
     return X_train, y_train, X_test, testing_group
 
@@ -435,10 +440,9 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
         plt.show()
 
     sub = pd.DataFrame(data=testing_group.astype(int), columns=['Group'])
-    prob_cols = ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']
-    for i, f in enumerate(prob_cols):
+    for i, f in enumerate(DefaultConfig.columns):
         sub[f] = prediction[:, i]
-    for i in prob_cols:
+    for i in DefaultConfig.columns:
         sub[i] = sub.groupby('Group')[i].transform('mean')
     sub = sub.drop_duplicates()
 
@@ -502,6 +506,7 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
         prediction += prediction_cat / num_model_seed
         print('logloss', log_loss(pd.get_dummies(y_train).values, oof_cat))
         print('ac', accuracy_score(y_train, np.argmax(oof_cat, axis=1)))
+        print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[y_train] - oof_cat)) / 480))
 
         if feature_importance is None:
             feature_importance = feature_importance_df
@@ -511,6 +516,7 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
     feature_importance['importance'] /= num_model_seed
     print('logloss', log_loss(pd.get_dummies(y_train).values, oof))
     print('ac', accuracy_score(y_train, np.argmax(oof, axis=1)))
+    print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[y_train] - oof)) / 480))
 
     if feature_importance is not None:
         feature_importance.to_hdf(path_or_buf=DefaultConfig.cbt_feature_cache_path, key='cbt')
@@ -535,10 +541,9 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
         plt.show()
 
     sub = pd.DataFrame(data=testing_group.astype(int), columns=['Group'])
-    prob_cols = ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']
-    for i, f in enumerate(prob_cols):
+    for i, f in enumerate(DefaultConfig.columns):
         sub[f] = prediction[:, i]
-    for i in prob_cols:
+    for i in DefaultConfig.columns:
         sub[i] = sub.groupby('Group')[i].transform('mean')
     sub = sub.drop_duplicates()
 
@@ -581,7 +586,7 @@ def merge(**params):
     cbt_submit = pd.read_csv(filepath_or_buffer=DefaultConfig.cbt_submit_path)
 
     # lgb_submit['sum'] = 0
-    for column in ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']:
+    for column in DefaultConfig.columns:
         lgb_submit[column] = (0.5 * lgb_submit[column] + 0.5 * cbt_submit[column])
     #     lgb_submit['sum'] += lgb_submit[column]
     #
@@ -591,3 +596,23 @@ def merge(**params):
     # del lgb_submit['sum']
 
     lgb_submit.to_csv(DefaultConfig.submit_path, encoding='utf-8', index=None)
+
+
+def caculate_rate(**params):
+    """
+    计算占比
+    :param params:
+    :return:
+    """
+    path = DefaultConfig.submit_path
+
+    df = pd.read_csv(filepath_or_buffer=path, encoding='utf-8')
+
+    # ['Excellent ratio',   'Good ratio',        'Pass ratio',       'Fail ratio']
+    # 0.18341747833383623    0.2357518420053725  0.43874376959924055  0.14208691006155078
+    for column in DefaultConfig.columns:
+        print(df[column].mean())
+
+
+if __name__ == '__main__':
+    caculate_rate()

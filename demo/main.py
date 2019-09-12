@@ -16,34 +16,39 @@ def main():
     X_train, y_train, X_test, testing_group = preprocess()
     print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
 
-    # ############################################# cgb
-    # columns = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
-    #
-    # X_train = X_train[columns]
-    # X_test = X_test[columns]
+    columns = X_train.columns
+    # ############################################# cbt
+    if DefaultConfig.select_model is 'cbt':
+        # columns = ['Parameter10', 'Parameter9', 'Parameter5', 'Parameter8', 'Parameter6', 'Parameter7']
+        columns = ['Parameter7', 'Parameter6', 'Parameter8', 'Parameter5', 'Parameter9', 'Parameter10']
+        X_train = X_train[columns]
+        X_test = X_test[columns]
 
     # ############################################# lgb
-    columns = ['Parameter1',
-               'Parameter10',
-               'Parameter2',
-               'Parameter3',
-               'Parameter4',
-               'Parameter5',
-               'Parameter6',
-               'Parameter7',
-               'Parameter8',
-               'Parameter9',
+    if DefaultConfig.select_model is 'lgb':
+        columns = [
+            'Parameter1',
+            'Parameter4',
+            'Parameter2',
+            'Parameter5',
+            'inv(div(max(min(X3, X1), abs(log(inv(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))',
+            'inv(div(max(sqrt(X2), abs(log(inv(max(X0, X2))))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(div(sqrt(min(X3, X1)), log(mul(-0.088, X2))))))))',
+            'div(sqrt(sub(X2, X3)), div(max(min(X3, X1), inv(inv(add(inv(sqrt(X2)), X2)))), log(div(sqrt(min(X3, X1)), log(mul(-0.088, X2))))))',
+            'inv(div(max(min(X3, X1), abs(min(X3, X1))), log(div(log(max(min(X3, X1), abs(log(div(max(min(X3, X1), abs(log(sqrt(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))))), log(mul(-0.088, X2))))))',
+            'Parameter3',
+            'Parameter6',
+            'Parameter10',
+            # + 0.00068800
+            'Parameter10_label',
+            'Parameter9',
+            'Parameter8',
+            'Parameter7',
+        ]
 
-               # 下面的特征列有用 提升幅度在0.0015左右
-               'inv(div(max(min(X3, X1), abs(log(inv(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))',
-               'inv(div(max(sqrt(X2), abs(log(inv(max(X0, X2))))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(div(sqrt(min(X3, X1)), log(mul(-0.088, X2))))))))',
-               'div(sqrt(sub(X2, X3)), div(max(min(X3, X1), inv(inv(add(inv(sqrt(X2)), X2)))), log(div(sqrt(min(X3, X1)), log(mul(-0.088, X2))))))',
-               'inv(div(max(min(X3, X1), abs(min(X3, X1))), log(div(log(max(min(X3, X1), abs(log(div(max(min(X3, X1), abs(log(sqrt(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))))), log(mul(-0.088, X2))))))'
-               ]
+        X_train = X_train[columns]
+        X_test = X_test[columns]
 
-    X_train = X_train[columns]
-    X_test = X_test[columns]
-
+    print('select_columns: ', list(columns))
     if DefaultConfig.select_model is 'lgb':
         lgb_model(X_train, y_train, X_test, testing_group)
     elif DefaultConfig.select_model is 'cbt':
@@ -52,7 +57,8 @@ def main():
     print('\n模型训练与预测 耗时： %s \n' % str(time.clock() - start))
     print(time.clock() - start)
 
-    merge()
+    if DefaultConfig.select_model is 'merge':
+        merge()
 
 
 if __name__ == '__main__':

@@ -32,6 +32,9 @@ class DefaultConfig(object):
     # label
     parameter_label_features = ['Parameter5', 'Parameter6', 'Parameter7', 'Parameter8', 'Parameter9', 'Parameter10']
 
+    # columns
+    columns = ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']
+
     # ######################################### Attribute
     # attribute
     attribute_features = ['Attribute1', 'Attribute2', 'Attribute3', 'Attribute4', 'Attribute5', 'Attribute6',
@@ -43,8 +46,12 @@ class DefaultConfig(object):
                                 'Attribute10']
 
     # ######################################### select_model
+    # wyt
     select_model = 'lgb'
+    # zya
     # select_model = 'cbt'
+    # wjunneng
+    # select_model = 'merge'
 
     # ######################################### 一、normalization
     no_replace_normalization = True
@@ -56,13 +63,13 @@ class DefaultConfig(object):
     # add_numerical_feature_df_cache
     df_add_numerical_feature_cache_path = project_path + '/data/cache/df_add_numerical_feature.h5'
     # add_label_feature_no_replace
-    no_replace_add_label_feature = True
+    no_replace_add_label_feature = False
     # add_label_feature_df_cache
     df_add_label_feature_cache_path = project_path + '/data/cache/df_add_label_feature.h5'
 
     # ######################################### 四、smote
     # smote_no_replace
-    no_replace_smote = True
+    no_replace_smote = False
     # smote_cache
     X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
     y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'
