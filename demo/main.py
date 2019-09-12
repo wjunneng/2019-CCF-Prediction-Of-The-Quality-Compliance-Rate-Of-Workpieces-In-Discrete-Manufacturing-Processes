@@ -19,8 +19,7 @@ def main():
     columns = X_train.columns
     # ############################################# cbt
     if DefaultConfig.select_model is 'cbt':
-        # columns = ['Parameter10', 'Parameter9', 'Parameter5', 'Parameter8', 'Parameter6', 'Parameter7']
-        columns = ['Parameter7', 'Parameter6', 'Parameter8', 'Parameter5', 'Parameter9', 'Parameter10']
+        columns = ['Parameter10', 'Parameter9', 'Parameter5', 'Parameter8', 'Parameter6', 'Parameter7']
         X_train = X_train[columns]
         X_test = X_test[columns]
 
