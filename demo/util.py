@@ -587,7 +587,7 @@ def merge(**params):
 
     # lgb_submit['sum'] = 0
     for column in DefaultConfig.columns:
-        lgb_submit[column] = (0.6 * lgb_submit[column] + 0.4 * cbt_submit[column])
+        lgb_submit[column] = (0.4 * lgb_submit[column] + 0.6 * cbt_submit[column])
     #     lgb_submit['sum'] += lgb_submit[column]
     #
     # for column in ['Excellent ratio', 'Good ratio', 'Pass ratio', 'Fail ratio']:
