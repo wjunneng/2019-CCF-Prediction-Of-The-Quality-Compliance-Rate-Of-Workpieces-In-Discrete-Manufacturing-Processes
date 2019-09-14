@@ -196,7 +196,7 @@ def add_label_feature(df, X_train, y_train, X_test, save=True, **params):
             df[column + '_label'] = df[column].apply(lambda x: int(round(x)))
 
         # 3.数值列
-        df['Parameter4_Parameter1'] = df['Parameter4'] - df['Parameter1']
+        df['Parameter10_Parameter1'] = df['Parameter10'] + df['Parameter1']
 
         # ###########################################  添加类别列
         # # 类别列
@@ -316,7 +316,78 @@ def preprocess(**params):
                 X_train[column] = X_train[column].astype(int)
                 X_test[column] = X_test[column].astype(int)
 
+    X_test.to_hdf(path_or_buf=DefaultConfig.X_test_cache_path, mode='w', key='X_test')
+
     return X_train, y_train, X_test, testing_group
+
+
+def get_validation(X_train, X_valid, y_train, y_valid, categorical_columns, random_state=42, **params):
+    """
+    返回验证集
+    :param X_train:
+    :param y_train:
+    :param params:
+    :return:
+    """
+    import lightgbm as lgb
+
+    X_train['Quality_label'] = y_train
+    X_valid['Quality_label'] = y_valid
+    X_train['Is_Test'] = 0
+    X_valid['Is_Test'] = 1
+
+    # 将 Train 和 Test 合成一个数据集。Quality_label是数据本来的Y，所以剔除。
+    df_adv = pd.concat([X_train, X_valid])
+
+    adv_data = lgb.Dataset(data=df_adv.drop('Is_Test', axis=1), label=df_adv.loc[:, 'Is_Test'])
+
+    # 定义模型参数
+    params = {
+        'boosting_type': 'gbdt',
+        'colsample_bytree': 1,
+        'learning_rate': 0.05,
+        'max_depth': 6,
+        'min_child_samples': 100,
+        'min_child_weight': 1,
+        'num_leaves': 36,
+        'objective': 'binary',
+        'random_state': random_state,
+        'subsample': 1.0,
+        'subsample_freq': 0,
+        'metric': 'auc',
+        'num_threads': 10,
+        'boost_from_average': False,
+        'verbose': -1
+    }
+
+    # 交叉验证
+    adv_cv_results = lgb.cv(
+        params,
+        adv_data,
+        num_boost_round=1000,
+        nfold=5,
+        verbose_eval=False,
+        categorical_feature=categorical_columns,
+        early_stopping_rounds=200,
+        seed=random_state
+    )
+
+    print('交叉验证中最优的AUC为 {:.5f}，对应的标准差为{:.5f}.'.format(
+        adv_cv_results['auc-mean'][-1], adv_cv_results['auc-stdv'][-1]))
+
+    print('模型最优的迭代次数为{}.'.format(len(adv_cv_results['auc-mean'])))
+
+    params['n_estimators'] = len(adv_cv_results['auc-mean'])
+
+    model_adv = lgb.LGBMClassifier(**params)
+    model_adv.fit(df_adv.drop('Is_Test', axis=1), df_adv.loc[:, 'Is_Test'])
+
+    preds_adv = model_adv.predict_proba(df_adv.drop('Is_Test', axis=1))[:, 1]
+
+    del X_train['Is_Test']
+    del X_valid['Is_Test']
+
+    return X_train, X_valid, preds_adv[:len(X_train)], preds_adv[len(X_train):]
 
 
 def lgb_model(X_train, y_train, X_test, testing_group, **params):
@@ -336,7 +407,7 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
     prediction = np.zeros((X_test.shape[0], 4))
     seeds = [42, 2019, 223344, 2019 * 2 + 1024, 332232111]
     num_model_seed = 1
-    n_splits = 10
+    n_splits = 5
     print('training')
 
     params = {
@@ -387,8 +458,23 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
             print(index)
             train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
                 train_index], y_train.iloc[test_index]
-            train_data = lgb.Dataset(train_x, label=train_y)
-            validation_data = lgb.Dataset(test_x, label=test_y)
+
+            train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
+                                                                                                    train_y, test_y,
+                                                                                                    ['Parameter5',
+                                                                                                     'Parameter6',
+                                                                                                     'Parameter7',
+                                                                                                     'Parameter8',
+                                                                                                     'Parameter9',
+                                                                                                     'Parameter10'],
+                                                                                                    seeds[model_seed])
+
+            train_data = lgb.Dataset(train_data.drop('Quality_label', axis=1), label=train_data.loc[:, 'Quality_label'],
+                                     weight=train_data_weight)
+            validation_data = lgb.Dataset(validation_data.drop('Quality_label', axis=1),
+                                          label=validation_data.loc[:, 'Quality_label'],
+                                          weight=validation_data_weight)
+
             gc.collect()
             bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
                             verbose_eval=1000, early_stopping_rounds=1000)
@@ -491,7 +577,20 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
             bst = cbt.CatBoostClassifier(iterations=1000, learning_rate=0.01, verbose=300,
                                          early_stopping_rounds=200, task_type='GPU',
                                          loss_function='MultiClass')
-            bst.fit(train_x, train_y, eval_set=(test_x, test_y))
+
+            train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
+                                                                                                    train_y, test_y,
+                                                                                                    ['Parameter10',
+                                                                                                     'Parameter9',
+                                                                                                     'Parameter8',
+                                                                                                     'Parameter5',
+                                                                                                     'Parameter6',
+                                                                                                     'Parameter7'],
+                                                                                                    seeds[model_seed])
+
+            bst.fit(train_data.drop('Quality_label', axis=1), train_data['Quality_label'],
+                    eval_set=(validation_data.drop('Quality_label', axis=1), validation_data['Quality_label']),
+                    sample_weight=train_data_weight)
             oof_cat[test_index] += bst.predict_proba(test_x)
             prediction_cat += bst.predict_proba(X_test) / n_splits
             gc.collect()

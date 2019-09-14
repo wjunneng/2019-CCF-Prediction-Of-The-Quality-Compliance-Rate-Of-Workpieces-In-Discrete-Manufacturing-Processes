@@ -51,7 +51,7 @@ class DefaultConfig(object):
     # zya
     # select_model = 'cbt'
     # wjunneng
-    select_model = 'merge'
+    # select_model = 'merge'
 
     # ######################################### 一、normalization
     no_replace_normalization = True
@@ -73,6 +73,7 @@ class DefaultConfig(object):
     # smote_cache
     X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
     y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'
+    X_test_cache_path = project_path + '/data/cache/X_test.h5'
 
     # lgb_submit
     lgb_submit_path = project_path + '/data/submit/lgb_submit.csv'
@@ -83,3 +84,6 @@ class DefaultConfig(object):
 
     lgb_feature_cache_path = project_path + '/data/cache/lgb_feature.h5'
     cbt_feature_cache_path = project_path + '/data/cache/cbt_feature.h5'
+
+    # ########################################## single
+    single_model = True
