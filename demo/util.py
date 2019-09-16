@@ -196,7 +196,7 @@ def add_label_feature(df, X_train, y_train, X_test, save=True, **params):
             df[column + '_label'] = df[column].apply(lambda x: int(round(x)))
 
         # 3.数值列
-        df['Parameter10_Parameter1'] = df['Parameter10'] + df['Parameter1']
+        df['Parameter10_Parameter7'] = df['Parameter10'] - df['Parameter7']
 
         # ###########################################  添加类别列
         # # 类别列
@@ -329,6 +329,7 @@ def get_validation(X_train, X_valid, y_train, y_valid, categorical_columns, rand
     :param params:
     :return:
     """
+    import pandas as pd
     import lightgbm as lgb
 
     X_train['Quality_label'] = y_train
@@ -387,6 +388,18 @@ def get_validation(X_train, X_valid, y_train, y_valid, categorical_columns, rand
     del X_train['Is_Test']
     del X_valid['Is_Test']
 
+    # #################################### 效果不好
+    # X_train['weight'] = preds_adv[:len(X_train)]
+    # X_valid['weight'] = preds_adv[len(X_train):]
+    #
+    # X = pd.concat([X_train, X_valid], axis=0, ignore_index=True)
+    # X.sort_values(by='weight', inplace=True, ascending=True)
+    # X.reset_index(drop=True, inplace=True)
+    #
+    # return X.drop('weight', axis=1).loc[len(X_valid):, :], X.drop('weight', axis=1).loc[:len(X_valid), :], X.loc[len(
+    #     X_valid):, 'weight'], X.loc[:len(X_valid), 'weight']
+
+    # #################################### 不排序
     return X_train, X_valid, preds_adv[:len(X_train)], preds_adv[len(X_train):]
 
 
@@ -461,12 +474,13 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
 
             train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
                                                                                                     train_y, test_y,
-                                                                                                    ['Parameter5',
+                                                                                                    ['Parameter10',
+                                                                                                     'Parameter5',
                                                                                                      'Parameter6',
-                                                                                                     'Parameter7',
-                                                                                                     'Parameter8',
                                                                                                      'Parameter9',
-                                                                                                     'Parameter10'],
+                                                                                                     'Parameter8',
+                                                                                                     'Parameter7',
+                                                                                                     'Parameter10_label'],
                                                                                                     seeds[model_seed])
 
             train_data = lgb.Dataset(train_data.drop('Quality_label', axis=1), label=train_data.loc[:, 'Quality_label'],

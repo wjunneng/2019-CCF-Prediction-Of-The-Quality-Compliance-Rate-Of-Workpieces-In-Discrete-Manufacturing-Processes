@@ -28,9 +28,9 @@ def main():
     if DefaultConfig.select_model is 'lgb':
         columns = [
             'Parameter10',
+            'Parameter4',
             'Parameter1',
             'Parameter2',
-            'Parameter4',
             'Parameter5',
             'inv(div(max(min(X3, X1), abs(min(X3, X1))), log(div(log(max(min(X3, X1), abs(log(div(max(min(X3, X1), abs(log(sqrt(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))))), log(mul(-0.088, X2))))))',
             'inv(div(max(min(X3, X1), abs(log(inv(X2)))), log(div(log(max(min(X3, X1), abs(log(max(X0, X2))))), log(mul(-0.088, X2))))))',
@@ -41,7 +41,7 @@ def main():
             'Parameter9',
             'Parameter8',
             'Parameter7',
-            'Parameter10_Parameter1'
+            'Parameter10_label'
         ]
 
         X_train = X_train[columns]

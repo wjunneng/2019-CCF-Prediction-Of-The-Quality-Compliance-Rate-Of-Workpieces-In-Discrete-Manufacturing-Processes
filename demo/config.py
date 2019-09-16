@@ -51,7 +51,7 @@ class DefaultConfig(object):
     # zya
     # select_model = 'cbt'
     # wjunneng
-    # select_model = 'merge'
+    select_model = 'merge'
 
     # ######################################### 一、normalization
     no_replace_normalization = True
