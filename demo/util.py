@@ -196,7 +196,10 @@ def add_label_feature(df, X_train, y_train, X_test, save=True, **params):
             df[column + '_label'] = df[column].apply(lambda x: int(round(x)))
 
         # 3.数值列
-        df['Parameter10_Parameter7'] = df['Parameter10'] - df['Parameter7']
+        for c_col in ['Parameter10']:
+            for n_col in ['Parameter1', 'Parameter4']:
+                df[n_col + '_groupby_' + c_col + '_mean_ratio'] = df[n_col] / (
+                    df[c_col].map(df[n_col].groupby(df[c_col]).mean()))
 
         # ###########################################  添加类别列
         # # 类别列
@@ -472,22 +475,25 @@ def lgb_model(X_train, y_train, X_test, testing_group, **params):
             train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
                 train_index], y_train.iloc[test_index]
 
-            train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
-                                                                                                    train_y, test_y,
-                                                                                                    ['Parameter10',
-                                                                                                     'Parameter5',
-                                                                                                     'Parameter6',
-                                                                                                     'Parameter9',
-                                                                                                     'Parameter8',
-                                                                                                     'Parameter7',
-                                                                                                     'Parameter10_label'],
-                                                                                                    seeds[model_seed])
+            # train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
+            #                                                                                         train_y, test_y,
+            #                                                                                         ['Parameter10',
+            #                                                                                          'Parameter5',
+            #                                                                                          'Parameter6',
+            #                                                                                          'Parameter9',
+            #                                                                                          'Parameter8',
+            #                                                                                          'Parameter7',
+            #                                                                                          'Parameter10_label'],
+            #                                                                                         seeds[model_seed])
+            #
+            # train_data = lgb.Dataset(train_data.drop('Quality_label', axis=1), label=train_data.loc[:, 'Quality_label'],
+            #                          weight=train_data_weight)
+            # validation_data = lgb.Dataset(validation_data.drop('Quality_label', axis=1),
+            #                               label=validation_data.loc[:, 'Quality_label'],
+            #                               weight=validation_data_weight)
 
-            train_data = lgb.Dataset(train_data.drop('Quality_label', axis=1), label=train_data.loc[:, 'Quality_label'],
-                                     weight=train_data_weight)
-            validation_data = lgb.Dataset(validation_data.drop('Quality_label', axis=1),
-                                          label=validation_data.loc[:, 'Quality_label'],
-                                          weight=validation_data_weight)
+            train_data = lgb.Dataset(train_x, label=train_y)
+            validation_data = lgb.Dataset(test_x, label=test_y)
 
             gc.collect()
             bst = lgb.train(params, train_data, valid_sets=[validation_data], num_boost_round=10000,
@@ -592,19 +598,22 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
                                          early_stopping_rounds=200, task_type='GPU',
                                          loss_function='MultiClass')
 
-            train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
-                                                                                                    train_y, test_y,
-                                                                                                    ['Parameter10',
-                                                                                                     'Parameter9',
-                                                                                                     'Parameter8',
-                                                                                                     'Parameter5',
-                                                                                                     'Parameter6',
-                                                                                                     'Parameter7'],
-                                                                                                    seeds[model_seed])
+            # train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
+            #                                                                                         train_y, test_y,
+            #                                                                                         ['Parameter10',
+            #                                                                                          'Parameter9',
+            #                                                                                          'Parameter8',
+            #                                                                                          'Parameter5',
+            #                                                                                          'Parameter6',
+            #                                                                                          'Parameter7'],
+            #                                                                                         seeds[model_seed])
+            #
+            # bst.fit(train_data.drop('Quality_label', axis=1), train_data['Quality_label'],
+            #         eval_set=(validation_data.drop('Quality_label', axis=1), validation_data['Quality_label']),
+            #         sample_weight=train_data_weight)
+            bst.fit(train_x, train_y,
+                    eval_set=(test_x, test_y))
 
-            bst.fit(train_data.drop('Quality_label', axis=1), train_data['Quality_label'],
-                    eval_set=(validation_data.drop('Quality_label', axis=1), validation_data['Quality_label']),
-                    sample_weight=train_data_weight)
             oof_cat[test_index] += bst.predict_proba(test_x)
             prediction_cat += bst.predict_proba(X_test) / n_splits
             gc.collect()

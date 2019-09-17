@@ -27,8 +27,9 @@ def main():
     # ############################################# lgb
     if DefaultConfig.select_model is 'lgb':
         columns = [
-            'Parameter10',
+            'Parameter4_groupby_Parameter10_mean_ratio',
             'Parameter4',
+            'Parameter10',
             'Parameter1',
             'Parameter2',
             'Parameter5',
