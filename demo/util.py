@@ -594,8 +594,8 @@ def cbt_model(X_train, y_train, X_test, testing_group, **params):
             train_x, test_x, train_y, test_y = X_train.iloc[train_index], X_train.iloc[test_index], y_train.iloc[
                 train_index], y_train.iloc[test_index]
             gc.collect()
-            bst = cbt.CatBoostClassifier(iterations=1000, learning_rate=0.01, verbose=300,
-                                         early_stopping_rounds=200, task_type='GPU',
+            bst = cbt.CatBoostClassifier(iterations=1200, learning_rate=0.05, verbose=300,
+                                         early_stopping_rounds=1000, task_type='GPU',
                                          loss_function='MultiClass')
 
             # train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,

@@ -49,9 +49,9 @@ class DefaultConfig(object):
     # wyt
     # select_model = 'lgb'
     # zya
-    # select_model = 'cbt'
+    select_model = 'cbt'
     # wjunneng
-    select_model = 'merge'
+    # select_model = 'merge'
 
     # ######################################### 一、normalization
     no_replace_normalization = True
