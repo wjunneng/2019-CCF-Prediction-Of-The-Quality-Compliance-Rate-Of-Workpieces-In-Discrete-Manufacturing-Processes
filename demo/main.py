@@ -1,5 +1,5 @@
 from util import *
-from config import *
+from configuration.config import *
 import warnings
 
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
