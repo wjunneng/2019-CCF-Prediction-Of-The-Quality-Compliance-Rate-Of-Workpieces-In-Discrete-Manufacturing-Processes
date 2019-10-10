@@ -1,5 +1,8 @@
-from util import *
+from demo.preprocess import Preprocess
 from configuration.config import *
+from model.cbt import CatBoost
+from model.lgbm import LightGbm
+
 import warnings
 
 warnings.filterwarnings("ignore", message="numpy.dtype size changed")
@@ -13,7 +16,9 @@ def main():
     start = time.clock()
 
     # 获取训练集，标签列，测试集，group
-    X_train, y_train, X_test, testing_group = preprocess()
+    X_train, y_train, X_test, testing_group = Preprocess(
+        first_round_training_data_path=DefaultConfig.first_round_training_data_path,
+        first_round_testing_data_path=DefaultConfig.first_round_testing_data_path).main()
     print('\n数据预处理 耗时： %s \n' % str(time.clock() - start))
 
     columns = X_train.columns
@@ -50,9 +55,9 @@ def main():
 
     print('select_columns: ', list(columns))
     if DefaultConfig.select_model is 'lgb':
-        lgb_model(X_train, y_train, X_test, testing_group)
+        LightGbm(X_train, y_train, X_test).main(testing_group)
     elif DefaultConfig.select_model is 'cbt':
-        cbt_model(X_train, y_train, X_test, testing_group)
+        CatBoost(X_train, y_train, X_test).main(testing_group)
 
     print('\n模型训练与预测 耗时： %s \n' % str(time.clock() - start))
     print(time.clock() - start)
