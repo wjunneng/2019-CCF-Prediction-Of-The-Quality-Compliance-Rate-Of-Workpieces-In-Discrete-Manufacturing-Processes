@@ -19,14 +19,17 @@ class Sampling(object):
         # before
         print('Before resampled dataset shape %s' % Counter(self.y))
 
+        X_columns = list(self.X.columns)
+
         # smote 算法
         smote = SMOTE(ratio=self.ratio, n_jobs=10, kind='svm')
-        X, y = smote.fit_sample(self.X, self.y)
+        self.X, self.y = smote.fit_sample(self.X, self.y)
 
         print('Before resampled dataset shape %s' % Counter(self.y))
 
         # 重新构造DataFrame
-        self.X = pd.DataFrame(data=X, columns=X.columns)
+        self.X = pd.DataFrame(data=self.X, columns=X_columns)
+        self.y = pd.Series(data=self.y)
 
         return self.X, self.y
 
@@ -38,14 +41,16 @@ class Sampling(object):
         # before
         print('Before resampled dataset shape %s' % Counter(self.y))
 
+        X_columns = list(self.X.columns)
+
         # smoteenn 算法
         smote = SMOTEENN(ratio=self.ratio, n_jobs=10)
-        X, y = smote.fit_sample(self.X, self.y)
+        self.X, self.y = smote.fit_sample(self.X, self.y)
 
         print('Before resampled dataset shape %s' % Counter(self.y))
-
         # 重新构造DataFrame
-        self.X = pd.DataFrame(data=X, columns=X.columns)
+        self.X = pd.DataFrame(data=self.X, columns=X_columns)
+        self.y = pd.Series(data=self.y)
 
         return self.X, self.y
 
@@ -57,13 +62,15 @@ class Sampling(object):
         # before
         print('Before resampled dataset shape %s' % Counter(self.y))
 
+        X_columns = list(self.X.columns)
+
         # smotetomek 算法
         smote = SMOTETomek(ratio=self.ratio, n_jobs=10)
-        X, y = smote.fit_sample(self.X, self.y)
-
+        self.X, self.y = smote.fit_sample(self.X, self.y)
         print('Before resampled dataset shape %s' % Counter(self.y))
 
         # 重新构造DataFrame
-        self.X = pd.DataFrame(data=X, columns=X.columns)
+        self.X = pd.DataFrame(data=self.X, columns=X_columns)
+        self.y = pd.Series(data=self.y)
 
         return self.X, self.y

@@ -110,7 +110,6 @@ class CatBoost(object):
             # 5折数据取平均值
             result.groupby(['feature'])['importance'].agg('mean').sort_values(ascending=False).head(40).plot.barh()
             plt.show()
-
         sub = pd.DataFrame(data=testing_group.astype(int), columns=['Group'])
         for i, f in enumerate(DefaultConfig.columns):
             sub[f] = prediction[:, i]

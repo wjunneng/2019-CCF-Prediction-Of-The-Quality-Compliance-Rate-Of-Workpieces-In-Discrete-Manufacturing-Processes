@@ -8,6 +8,7 @@ import pandas as pd
 from gplearn.genetic import SymbolicTransformer
 from sklearn import preprocessing
 from utils.sampling import Sampling
+from utils.convert import Convert
 from collections import Counter
 from imblearn.over_sampling import SMOTE
 
@@ -76,9 +77,10 @@ class Preprocess(object):
             # ########################################### 要进行yeo-johnson变换的特征列
             print('进行yeo-johnson变换的特征列：')
             print(DefaultConfig.parameter_numerical_features)
-            pt = preprocessing.PowerTransformer(method='yeo-johnson', standardize=True)
-            df[DefaultConfig.parameter_numerical_features] = pt.fit_transform(
-                df[DefaultConfig.parameter_numerical_features])
+
+            df[DefaultConfig.parameter_numerical_features] = Convert(df=df,
+                                                                     columns=DefaultConfig.
+                                                                     parameter_numerical_features).yeo_johnson()
 
             if save:
                 df.to_hdf(path_or_buf=path, key='normalization')
@@ -320,7 +322,6 @@ class Preprocess(object):
         X_test.to_hdf(path_or_buf=DefaultConfig.X_test_cache_path, mode='w', key='X_test')
 
         return X_train, y_train, X_test, testing_group
-
 
 # if __name__ == '__main__':
 #     Preprocess(first_round_testing_data_path=DefaultConfig.first_round_testing_data_path,
