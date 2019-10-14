@@ -1,16 +1,13 @@
 from configuration.config import DefaultConfig
 from utils.mean_encoder import MeanEncoder
 from utils.utils import Utils
+from utils.sampling import Sampling
+from utils.convert import Convert
 
 import os
 import numpy as np
 import pandas as pd
 from gplearn.genetic import SymbolicTransformer
-from sklearn import preprocessing
-from utils.sampling import Sampling
-from utils.convert import Convert
-from collections import Counter
-from imblearn.over_sampling import SMOTE
 
 
 class Preprocess(object):
