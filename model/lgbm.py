@@ -80,8 +80,7 @@ class LightGbm(object):
             for index, (train_index, test_index) in enumerate(skf.split(self.X_train, self.y_train)):
                 print(index)
                 train_x, test_x, train_y, test_y = self.X_train.iloc[train_index], self.X_train.iloc[test_index], \
-                                                   self.y_train.iloc[
-                                                       train_index], self.y_train.iloc[test_index]
+                                                   self.y_train.iloc[train_index], self.y_train.iloc[test_index]
 
                 # train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
                 #                                                                                         train_y, test_y,

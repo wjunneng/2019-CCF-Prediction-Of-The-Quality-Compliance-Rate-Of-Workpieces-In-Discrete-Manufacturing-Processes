@@ -28,9 +28,9 @@ class CatBoost(object):
         feature_importance = None
         oof = np.zeros((self.X_train.shape[0], 4))
         prediction = np.zeros((self.X_test.shape[0], 4))
-        seeds = [19970101, 2019 * 2 + 1024, 4096, 2048, 1024]
+        seeds = [42, 2019 * 2 + 1024, 4096, 2048, 1024]
         num_model_seed = 1
-        n_splits = 5
+        n_splits = 10
         for model_seed in range(num_model_seed):
             print(model_seed + 1)
             oof_cat = np.zeros((self.X_train.shape[0], 4))
@@ -44,7 +44,7 @@ class CatBoost(object):
                 train_x, test_x, train_y, test_y = self.X_train.iloc[train_index], self.X_train.iloc[test_index], \
                                                    self.y_train.iloc[train_index], self.y_train.iloc[test_index]
                 gc.collect()
-                bst = cbt.CatBoostClassifier(iterations=1200, learning_rate=0.05, verbose=300,
+                bst = cbt.CatBoostClassifier(iterations=1200, learning_rate=0.005, verbose=300,
                                              early_stopping_rounds=1000, task_type='GPU',
                                              loss_function='MultiClass')
 
