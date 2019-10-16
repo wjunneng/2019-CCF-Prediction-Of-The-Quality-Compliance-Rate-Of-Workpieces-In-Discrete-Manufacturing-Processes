@@ -7,6 +7,7 @@ from utils.numerical_feature import NumericalFeature
 
 from demo.util import deal_outlier
 from demo.util import add_label_feature
+from demo.util import count_encode
 
 import os
 import numpy as np
@@ -84,7 +85,7 @@ class Preprocess(object):
                 steps = ['step_1', 'step_2', 'step_3', 'step_4', 'step_5']
 
             elif DefaultConfig.select_model is 'cbt':
-                steps = ['step_1', 'step_2', 'step_5']
+                steps = ['step_1', 'step_2', 'step_5', 'step_6']
 
             if 'step_1' in steps:
                 # ########################################### 要进行范围限制的特征列
@@ -106,6 +107,10 @@ class Preprocess(object):
                 df = add_label_feature(df=df, X_train=X_train, y_train=y_train, X_test=X_test)
 
             if 'step_5' in steps:
+                # ########################################### 添加类别列
+                df = count_encode(X=df, categorical_features=DefaultConfig.parameter_label_features)
+
+            if 'step_6' in steps:
                 # ########################################### 修复
                 # 重新获取X_train
                 X_train = df[:X_train.shape[0]]
@@ -122,7 +127,7 @@ class Preprocess(object):
                 X_train = X_train.fillna(0)
                 X_test = X_test.fillna(0)
 
-            if 'step_6' in steps:
+            if 'step_7' in steps:
                 # ########################################### 样本抽样
                 # ['Excellent ratio',   'Good ratio',        'Pass ratio',       'Fail ratio']
                 # 0.1711159138196257    0.2560259533930791  0.4284821074119886  0.14437602537530658

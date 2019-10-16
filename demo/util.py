@@ -84,6 +84,34 @@ def add_label_feature(df, X_train, y_train, X_test, **params):
     return df
 
 
+def count_encode(X, categorical_features, normalize=False):
+    """
+    计数编码
+    :param X:
+    :param categorical_features:
+    :param normalize:
+    :return:
+    """
+    import numpy as np
+
+    print('Count encoding: {}'.format(categorical_features))
+    X_ = pd.DataFrame()
+    for cat_feature in categorical_features:
+        X_[cat_feature] = X[cat_feature].astype('object').map(X[cat_feature].value_counts())
+        if normalize:
+            X_[cat_feature] = X_[cat_feature] / np.max(X_[cat_feature])
+    X_ = X_.add_suffix('_count_encoded')
+    if normalize:
+        X_ = X_.astype(np.float32)
+        X_ = X_.add_suffix('_normalized')
+    else:
+        X_ = X_.astype(np.uint32)
+
+    df = pd.concat([X, X_], ignore_index=True, axis=1)
+    df.columns = list(X.columns) + list(X_.columns)
+    return df
+
+
 def save_result(testing_group, prediction, **params):
     """
     保存结果
