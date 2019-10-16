@@ -25,7 +25,7 @@ class CatBoost(object):
         :return:
         """
         print('cbt train...')
-        n_splits = 10
+        n_splits = 5
         feature_importance = None
         oof = np.zeros((self.X_train.shape[0], 4))
         prediction = np.zeros((self.X_test.shape[0], 4))
@@ -39,7 +39,7 @@ class CatBoost(object):
             train_x, test_x, train_y, test_y = self.X_train.iloc[train_index], self.X_train.iloc[test_index], \
                                                self.y_train.iloc[train_index], self.y_train.iloc[test_index]
             gc.collect()
-            bst = cbt.CatBoostClassifier(iterations=1500, learning_rate=0.005, verbose=300,
+            bst = cbt.CatBoostClassifier(iterations=1200, learning_rate=0.05, verbose=300,
                                          early_stopping_rounds=1000, task_type='GPU',
                                          loss_function='MultiClass')
             bst.fit(train_x, train_y, eval_set=(test_x, test_y))
@@ -68,10 +68,6 @@ class CatBoost(object):
         print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[self.y_train] - oof)) / 480))
 
         if feature_importance is not None:
-            feature_importance.to_hdf(path_or_buf=DefaultConfig.cbt_feature_cache_path, key='cbt')
-            # 读取feature_importance_df
-            feature_importance_df = Utils.reduce_mem_usage(
-                pd.read_hdf(path_or_buf=DefaultConfig.cbt_feature_cache_path, key='cbt', mode='r'))
             plt.figure(figsize=(8, 8))
             # 按照flod分组
             group = feature_importance_df.groupby(by=['fold'])

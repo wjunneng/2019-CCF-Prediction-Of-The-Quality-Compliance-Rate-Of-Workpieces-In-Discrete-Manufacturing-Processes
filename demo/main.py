@@ -25,7 +25,9 @@ def main():
     print(list(columns))
     # ############################################# cbt
     if DefaultConfig.select_model is 'cbt':
-        columns = ['Parameter10', 'Parameter9', 'Parameter8', 'Parameter5', 'Parameter6', 'Parameter7']
+        columns = ['Parameter10', 'Parameter9', 'Parameter8', 'Parameter5', 'Parameter6', 'Parameter7',
+                   'Parameter5_count_encoded', 'Parameter6_count_encoded', 'Parameter7_count_encoded',
+                   'Parameter8_count_encoded', 'Parameter9_count_encoded', 'Parameter10_count_encoded']
         X_train = X_train[columns]
         X_test = X_test[columns]
 

@@ -76,7 +76,7 @@ class Preprocess(object):
         if os.path.exists(X_train_cache_path) and os.path.exists(y_train_cache_path) and os.path.exists(
                 X_test_cache_path) and DefaultConfig.no_replace:
             X_train = Utils.reduce_mem_usage(pd.read_hdf(path_or_buf=X_train_cache_path, key='X_train', mode='r'))
-            y_train = Utils.reduce_mem_usage(pd.read_hdf(path_or_buf=y_train_cache_path, key='y_train', mode='r'))
+            # y_train = Utils.reduce_mem_usage(pd.read_hdf(path_or_buf=y_train_cache_path, key='y_train', mode='r'))
             X_test = Utils.reduce_mem_usage(pd.read_hdf(path_or_buf=X_test_cache_path, key='X_test', mode='r'))
         else:
             df = None
@@ -141,11 +141,11 @@ class Preprocess(object):
                     if '_label' in column:
                         X_train[column] = X_train[column].astype(int)
                         X_test[column] = X_test[column].astype(int)
-
-            if save:
-                X_train.to_hdf(path_or_buf=X_train_cache_path, mode='w', key='X_train')
-                y_train.to_hdf(path_or_buf=y_train_cache_path, mode='w', key='y_train')
-                X_test.to_hdf(path_or_buf=X_test_cache_path, mode='w', key='X_test')
+            y_train = pd.DataFrame(y_train)
+            # if save:
+            #     X_train.to_hdf(path_or_buf=X_train_cache_path, mode='w', key='X_train')
+            #     y_train.to_hdf(path_or_buf=y_train_cache_path, mode='w', key='y_train')
+            #     X_test.to_hdf(path_or_buf=X_test_cache_path, mode='w', key='X_test')
 
         return X_train, y_train, X_test
 

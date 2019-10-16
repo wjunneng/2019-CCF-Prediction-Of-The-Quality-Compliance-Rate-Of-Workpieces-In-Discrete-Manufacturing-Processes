@@ -54,7 +54,7 @@ class DefaultConfig(object):
     # select_model = 'merge'
 
     # #########################################
-    no_replace = True
+    no_replace = False
     X_train_cache_path = project_path + '/data/cache/X_train_cache.h5'
     y_train_cache_path = project_path + '/data/cache/y_train_cache.h5'
     X_test_cache_path = project_path + '/data/cache/X_test_cache.h5'
