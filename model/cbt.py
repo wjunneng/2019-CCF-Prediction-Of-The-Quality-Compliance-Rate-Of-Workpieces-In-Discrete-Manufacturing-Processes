@@ -25,67 +25,44 @@ class CatBoost(object):
         :return:
         """
         print('cbt train...')
+        n_splits = 10
         feature_importance = None
         oof = np.zeros((self.X_train.shape[0], 4))
         prediction = np.zeros((self.X_test.shape[0], 4))
-        seeds = [42, 2019 * 2 + 1024, 4096, 2048, 1024]
-        num_model_seed = 1
-        n_splits = 10
-        for model_seed in range(num_model_seed):
-            print(model_seed + 1)
-            oof_cat = np.zeros((self.X_train.shape[0], 4))
-            prediction_cat = np.zeros((self.X_test.shape[0], 4))
-            skf = StratifiedKFold(n_splits=n_splits, random_state=seeds[model_seed], shuffle=True)
 
-            # 存放特征重要性
-            feature_importance_df = pd.DataFrame()
-            for index, (train_index, test_index) in enumerate(skf.split(self.X_train, self.y_train)):
-                print(index)
-                train_x, test_x, train_y, test_y = self.X_train.iloc[train_index], self.X_train.iloc[test_index], \
-                                                   self.y_train.iloc[train_index], self.y_train.iloc[test_index]
-                gc.collect()
-                bst = cbt.CatBoostClassifier(iterations=1200, learning_rate=0.005, verbose=300,
-                                             early_stopping_rounds=1000, task_type='GPU',
-                                             loss_function='MultiClass')
+        skf = StratifiedKFold(n_splits=n_splits, random_state=42, shuffle=True)
 
-                # train_data, validation_data, train_data_weight, validation_data_weight = get_validation(train_x, test_x,
-                #                                                                                         train_y, test_y,
-                #                                                                                         ['Parameter10',
-                #                                                                                          'Parameter9',
-                #                                                                                          'Parameter8',
-                #                                                                                          'Parameter5',
-                #                                                                                          'Parameter6',
-                #                                                                                          'Parameter7'],
-                #                                                                                         seeds[model_seed])
-                #
-                # bst.fit(train_data.drop('Quality_label', axis=1), train_data['Quality_label'],
-                #         eval_set=(validation_data.drop('Quality_label', axis=1), validation_data['Quality_label']),
-                #         sample_weight=train_data_weight)
-                bst.fit(train_x, train_y,
-                        eval_set=(test_x, test_y))
+        # 存放特征重要性
+        feature_importance_df = pd.DataFrame()
+        for index, (train_index, test_index) in enumerate(skf.split(self.X_train, self.y_train)):
+            print('第' + str(index) + '折...')
+            train_x, test_x, train_y, test_y = self.X_train.iloc[train_index], self.X_train.iloc[test_index], \
+                                               self.y_train.iloc[train_index], self.y_train.iloc[test_index]
+            gc.collect()
+            bst = cbt.CatBoostClassifier(iterations=1500, learning_rate=0.005, verbose=300,
+                                         early_stopping_rounds=1000, task_type='GPU',
+                                         loss_function='MultiClass')
+            bst.fit(train_x, train_y, eval_set=(test_x, test_y))
 
-                oof_cat[test_index] += bst.predict_proba(test_x)
-                prediction_cat += bst.predict_proba(self.X_test) / n_splits
-                gc.collect()
+            oof[test_index] += bst.predict_proba(test_x)
+            prediction += bst.predict_proba(self.X_test) / n_splits
+            gc.collect()
 
-                fold_importance_df = pd.DataFrame()
-                fold_importance_df["feature"] = list(self.X_train.columns)
-                fold_importance_df["importance"] = bst.get_feature_importance()
-                fold_importance_df["fold"] = index + 1
-                feature_importance_df = pd.concat([feature_importance_df, fold_importance_df], axis=0)
+            fold_importance_df = pd.DataFrame()
+            fold_importance_df["feature"] = list(self.X_train.columns)
+            fold_importance_df["importance"] = bst.get_feature_importance()
+            fold_importance_df["fold"] = index + 1
+            feature_importance_df = pd.concat([feature_importance_df, fold_importance_df], axis=0)
 
-            oof += oof_cat / num_model_seed
-            prediction += prediction_cat / num_model_seed
-            print('logloss', log_loss(pd.get_dummies(self.y_train).values, oof_cat))
-            print('ac', accuracy_score(self.y_train, np.argmax(oof_cat, axis=1)))
-            print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[self.y_train] - oof_cat)) / 480))
+        print('logloss', log_loss(pd.get_dummies(self.y_train).values, oof))
+        print('ac', accuracy_score(self.y_train, np.argmax(oof, axis=1)))
+        print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[self.y_train] - oof)) / 480))
 
-            if feature_importance is None:
-                feature_importance = feature_importance_df
-            else:
-                feature_importance += feature_importance_df
+        if feature_importance is None:
+            feature_importance = feature_importance_df
+        else:
+            feature_importance += feature_importance_df
 
-        feature_importance['importance'] /= num_model_seed
         print('logloss', log_loss(pd.get_dummies(self.y_train).values, oof))
         print('ac', accuracy_score(self.y_train, np.argmax(oof, axis=1)))
         print('mae', 1 / (1 + np.sum(np.absolute(np.eye(4)[self.y_train] - oof)) / 480))
