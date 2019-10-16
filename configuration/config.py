@@ -45,35 +45,19 @@ class DefaultConfig(object):
     attribute_label_features = ['Attribute4', 'Attribute5', 'Attribute6', 'Attribute7', 'Attribute8', 'Attribute9',
                                 'Attribute10']
 
-    # ######################################### select_model
+    # #########################################
     # wyt
-    select_model = 'lgb'
+    # select_model = 'lgbm'
     # zya
-    # select_model = 'cbt'
+    select_model = 'cbt'
     # wjunneng
     # select_model = 'merge'
 
-    # ######################################### 一、normalization
-    no_replace_normalization = True
-    df_normalization_cache_path = project_path + '/data/cache/df_normalization.h5'
-
-    # ######################################### 二、add_numerical_feature/add_label_feature
-    # add_numerical_feature_no_replace
-    no_replace_add_numerical_feature = True
-    # add_numerical_feature_df_cache
-    df_add_numerical_feature_cache_path = project_path + '/data/cache/df_add_numerical_feature.h5'
-    # add_label_feature_no_replace
-    no_replace_add_label_feature = False
-    # add_label_feature_df_cache
-    df_add_label_feature_cache_path = project_path + '/data/cache/df_add_label_feature.h5'
-
-    # ######################################### 四、smote
-    # smote_no_replace
-    no_replace_smote = False
-    # smote_cache
-    X_train_smote_cache_path = project_path + '/data/cache/X_train_smote.h5'
-    y_train_smote_cache_path = project_path + '/data/cache/y_train_smote.h5'
-    X_test_cache_path = project_path + '/data/cache/X_test.h5'
+    # #########################################
+    no_replace = True
+    X_train_cache_path = project_path + '/data/cache/X_train_cache.h5'
+    y_train_cache_path = project_path + '/data/cache/y_train_cache.h5'
+    X_test_cache_path = project_path + '/data/cache/X_test_cache.h5'
 
     # lgb_submit
     lgb_submit_path = project_path + '/data/submit/lgb_submit.csv'
@@ -87,3 +71,4 @@ class DefaultConfig(object):
 
     # ########################################## single
     single_model = True
+

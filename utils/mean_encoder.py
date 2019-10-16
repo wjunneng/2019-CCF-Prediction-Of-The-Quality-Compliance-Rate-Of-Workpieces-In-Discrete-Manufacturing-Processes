@@ -8,11 +8,8 @@ class MeanEncoder:
     def __init__(self, categorical_features, n_splits=5, target_type='classification', prior_weight_func=None):
         """
         :param categorical_features: list of str, the name of the categorical columns to encode
-
         :param n_splits: the number of splits used in mean encoding
-
         :param target_type: str, 'regression' or 'classification'
-
         :param prior_weight_func:
         a function that takes in the number of observations, and outputs prior weight
         when a dict is passed, the default exponential decay function will be used:

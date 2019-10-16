@@ -30,7 +30,7 @@ def main():
         X_test = X_test[columns]
 
     # ############################################# lgb
-    if DefaultConfig.select_model is 'lgb':
+    if DefaultConfig.select_model is 'lgbm':
         columns = [
             'Parameter4_groupby_Parameter10_mean_ratio',
             'Parameter4',
